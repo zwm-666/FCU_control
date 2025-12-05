@@ -1,0 +1,5 @@
+{
+  "name": "H2-FCU Modern Dashboard",
+  "description": "A high-performance industrial visualization for Hydrogen Fuel Cell Units (FCU + DCDC) featuring real-time CAN bus monitoring, schematic visualization, and remote control.",
+  "requestFramePermissions": []
+}
