@@ -172,7 +172,7 @@ function App() {
         <div className="min-h-screen bg-slate-900 text-slate-200 font-sans selection:bg-cyan-500/30 flex flex-col">
 
             {/* HEADER */}
-            <header className="bg-slate-950 border-b border-slate-800 px-6 py-3 flex justify-between items-center shadow-md z-10 sticky top-0">
+            <header className="bg-slate-950 border-b border-slate-800 px-6 py-3 flex justify-between items-center shadow-md z-50 sticky top-0">
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20">
                         <Activity className="text-white w-6 h-6" />
@@ -241,17 +241,17 @@ function App() {
                 {/* VIEW: MONITOR */}
                 {activeView === 'monitor' && (
                     <div className="space-y-4 max-w-6xl mx-auto animate-in fade-in zoom-in-95 duration-300">
+                        {/* 2. Schematic View (Full Width) */}
+                        <div className="w-full">
+                            <SchematicView data={machine} />
+                        </div>
+
                         {/* 1. Compact Gauges Row */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <Gauge size="small" label="电堆电压" value={machine.power.stackVoltage} unit="V" max={60} color="text-yellow-400" />
                             <Gauge size="small" label="电堆电流" value={machine.power.stackCurrent} unit="A" max={50} color="text-yellow-400" />
                             <Gauge size="small" label="电堆温度" value={machine.sensors.stackTemp} unit="°C" min={-20} max={100} color="text-orange-400" />
                             <Gauge size="small" label="氢气入口压力" value={machine.sensors.h2InletPressure} unit="MPa" max={2.5} color="text-cyan-400" />
-                        </div>
-
-                        {/* 2. Schematic View (Full Width) */}
-                        <div className="w-full">
-                            <SchematicView data={machine} />
                         </div>
 
                         {/* 3. Additional Mini Data (Cards) */}

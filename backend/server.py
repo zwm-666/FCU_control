@@ -129,6 +129,8 @@ class VirtualDriver(CANDriver):
         self.start_time = time.time()
         self.last_send_time = 0
         self.update_interval = 0.1 # 100ms
+        self.io_flags = 0  # Store simulated IO state
+        self.fan1_duty = 0
         logger.info("Initialized Virtual CAN Driver")
         
     def open(self) -> bool:
@@ -190,6 +192,19 @@ class VirtualDriver(CANDriver):
         data_sensors[2:4] = int((25+40)*10).to_bytes(2, 'little', signed=True) # Ambient
         data_sensors[4:6] = int(1200).to_bytes(2, 'little') # H2 Cyl Press 1200*0.01 = 12MPa
         messages.append(self._create_msg(0x18FF03F0, data_sensors))
+
+        # 4. IO Status (0x18FF04F0)
+        # Byte 0: IO Flags
+        # Byte 1: Fan1 Duty
+        # Byte 2-3: DCF MOS Temp
+        # Byte 4-5: Fault Code
+        dcf_mos_temp = int((45 + 40) * 10) # 45 C
+        data_io = bytearray(8)
+        data_io[0] = self.io_flags
+        data_io[1] = self.fan1_duty
+        data_io[2:4] = dcf_mos_temp.to_bytes(2, 'little', signed=True)
+        data_io[4:6] = (0).to_bytes(2, 'little') # No fault
+        messages.append(self._create_msg(0x18FF04F0, data_io))
         
         return messages
         
@@ -203,6 +218,44 @@ class VirtualDriver(CANDriver):
         
     def send(self, arbitration_id, data, is_extended=True) -> bool:
         logger.info(f"[VirtualTX] ID: 0x{arbitration_id:08X} Data: {data.hex()}")
+        
+        # Simulate Loopback for Control Command (0x18FF10A0)
+        if arbitration_id == 0x18FF10A0 and len(data) >= 8:
+            # Parse control command to update virtual state
+            mode_cmd = data[0]
+            mode = mode_cmd & 0x03 # 0=MANUAL, 1=AUTO
+            
+            if mode == 0: # Manual Mode
+                # Byte 1: Manual Flags
+                # bit0=inlet, bit1=purge, bit2=prop, bit3=heater, bit4=fan1, bit5=fan2
+                # Note: Bit mapping in Control Command (Byte 1) matches IO Status (Byte 0) 
+                # except for bits that might be different. 
+                # Control Command: bit0=inlet, bit1=purge, bit2=heater, bit3=fan1, bit4=fan2 ?? 
+                # Let's check generate_control_packet in can_protocol.py
+                # Byte 1 in command: 
+                # bit0=inlet, bit1=purge, bit2=heater, bit3=fan1, bit4=fan2
+                
+                # IO Status Byte 0:
+                # bit0=inlet, bit1=purge, bit2=prop, bit3=heater, bit4=fan1, bit5=fan2
+                
+                # We need to map command flags to io flags carefully
+                cmd_flags = data[1]
+                
+                new_io = 0
+                if cmd_flags & 0x01: new_io |= 0x01 # Inlet
+                if cmd_flags & 0x02: new_io |= 0x02 # Purge
+                # No prop valve in manual command flags currently shown in simplified logic, 
+                # but let's assume direct mapping for now or keep it simple
+                
+                if cmd_flags & 0x04: new_io |= 0x08 # Heater (Command bit 2 -> IO bit 3)
+                if cmd_flags & 0x08: new_io |= 0x10 # Fan1 (Command bit 3 -> IO bit 4)
+                if cmd_flags & 0x10: new_io |= 0x20 # Fan2 (Command bit 4 -> IO bit 5)
+                
+                self.io_flags = new_io
+                
+                # Fan Speed
+                self.fan1_duty = data[2]
+                
         return True
 
 

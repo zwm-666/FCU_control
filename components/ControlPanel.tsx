@@ -94,8 +94,8 @@ export const ControlPanel: React.FC<Props> = ({ control, onUpdate, connectionCon
                         <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">执行器开关</h4>
 
                         {[
-                            { label: "氢气进气阀", key: 'forceInletValve' },
-                            { label: "氢气排空阀", key: 'forcePurgeValve' },
+                            { label: "氢气电磁阀", key: 'forceInletValve' },
+                            { label: "排氢阀", key: 'forcePurgeValve' },
                             { label: "电堆加热膜", key: 'forceHeater', icon: Flame },
                             { label: "风扇 1 (电堆)", key: 'forceFan1', icon: Fan },
                             { label: "风扇 2 (DC/DC)", key: 'forceFan2', icon: Fan },
@@ -158,18 +158,36 @@ const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean
     </button>
 );
 
-const SliderControl = ({ label, value, unit, min, max, step = 1, onChange }: any) => (
-    <div>
-        <div className="flex justify-between text-[10px] text-slate-400 mb-1">
-            <span>{label}</span>
-            <span className="font-mono text-white">{value} {unit}</span>
+const SliderControl = ({ label, value, unit, min, max, step = 1, onChange }: any) => {
+    const [localValue, setLocalValue] = React.useState(value);
+
+    // Sync local value with prop value
+    React.useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    const handleCommit = () => {
+        // Only send control signal when user stops dragging
+        if (localValue !== value) {
+            onChange(localValue);
+        }
+    };
+
+    return (
+        <div>
+            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                <span>{label}</span>
+                <span className="font-mono text-white">{localValue} {unit}</span>
+            </div>
+            <input
+                type="range"
+                min={min} max={max} step={step}
+                value={localValue}
+                onChange={(e) => setLocalValue(parseFloat(e.target.value))}
+                onMouseUp={handleCommit}
+                onTouchEnd={handleCommit}
+                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
         </div>
-        <input
-            type="range"
-            min={min} max={max} step={step}
-            value={value}
-            onChange={(e) => onChange(parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-        />
-    </div>
-);
+    );
+};

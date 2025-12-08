@@ -18,32 +18,32 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
           <AreaChart data={data}>
             <defs>
               <linearGradient id={`color${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
-                <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
             <XAxis dataKey="time" hide />
-            <YAxis 
-                tick={{fill: '#94a3b8', fontSize: 10}} 
-                tickLine={false}
-                axisLine={false}
-                width={30}
+            <YAxis
+              tick={{ fill: '#94a3b8', fontSize: 10 }}
+              tickLine={false}
+              axisLine={false}
+              width={30}
             />
-            <Tooltip 
-                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
-                itemStyle={{ color: color }}
-                formatter={(value: number) => [`${value} ${unit}`, title]}
-                labelFormatter={() => ''}
+            <Tooltip
+              contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
+              itemStyle={{ color: color }}
+              formatter={(value: number) => [`${value} ${unit}`, title]}
+              labelFormatter={() => ''}
             />
-            <Area 
-                type="monotone" 
-                dataKey={dataKey} 
-                stroke={color} 
-                fillOpacity={1} 
-                fill={`url(#color${dataKey})`} 
-                isAnimationActive={false}
-                strokeWidth={2}
+            <Area
+              type="monotone"
+              dataKey={dataKey}
+              stroke={color}
+              fillOpacity={1}
+              fill={`url(#color${dataKey})`}
+              isAnimationActive={false}
+              strokeWidth={2}
             />
           </AreaChart>
         </ResponsiveContainer>

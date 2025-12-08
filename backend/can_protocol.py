@@ -1,6 +1,6 @@
 """
-CAN Protocol Parser and Generator
-Matches the TypeScript canProtocol.ts implementation
+CAN 协议解析器和生成器
+与 TypeScript canProtocol.ts 实现相匹配
 """
 
 import struct
@@ -28,8 +28,8 @@ class MachineState:
             "dcfEfficiency": 0.0
         }
         self.sensors = {
-            "stackTemp": 25.0,
-            "ambientTemp": 25.0,
+            "stackTemp": 0.0,
+            "ambientTemp": 0.0,
             "h2CylinderPressure": 0.0,
             "h2InletPressure": 0.0,
             "h2Concentration": 0.0
@@ -42,7 +42,7 @@ class MachineState:
             "fan1": False,
             "fan2": False,
             "fan1Duty": 0,
-            "dcfMosTemp": 25.0,
+            "dcfMosTemp": 0.0,
             "faultCode": 0
         }
     
