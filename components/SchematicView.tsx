@@ -3,6 +3,28 @@ import React from 'react';
 import { MachineState } from '../types';
 import { Wind, Activity, Flame, Battery, Zap, Droplets } from 'lucide-react';
 
+
+// Configuration for uniform styling
+const STYLES = {
+    font: {
+        // Floating labels under icons (e.g. "氢气电磁阀")
+        floatingLabel: "text-[11px] font-bold text-slate-700 whitespace-nowrap bg-transparent border-none px-1 rounded shadow-none",
+        // Metric values inside components (e.g. DCF V/A)
+        metricValue: "font-mono text-xs text-slate-300 leading-none font-bold",
+        // Metric keys inside components (e.g. "输出电压")
+        metricKey: "text-[11px] text-slate-200",
+        // Big values inside Stack
+        stackValue: "text-2xl font-mono leading-none tracking-tight font-bold",
+        stackLabel: "text-[11px] text-slate-500 mb-0.5",
+        // In-component labels (e.g. "H2" cylinder text)
+        componentInnerLabel: "text-xs font-bold text-slate-300",
+    },
+    container: {
+        // Dark component containers
+        darkBox: "bg-slate-700/90 border border-slate-500 shadow-[0_0_20px_rgba(0,0,0,0.15)]",
+    }
+};
+
 interface Props {
     data: MachineState;
 }
@@ -14,11 +36,12 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
     const electricFlowing = data.power.stackCurrent > 1;
 
     // Colors
-    const h2Color = h2Flowing ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]' : 'bg-slate-700';
-    const airColor = airFlowing ? 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]' : 'bg-slate-700';
-    const fan2Color = fan2Running ? 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.6)]' : 'bg-slate-700';
-    const elecColor = electricFlowing ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'bg-slate-700';
-    const loadColor = electricFlowing ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-700';
+    // Colors
+    const h2Color = h2Flowing ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'bg-slate-700';
+    const airColor = airFlowing ? 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.6)]' : 'bg-slate-700';
+    const fan2Color = fan2Running ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-700';
+    const elecColor = electricFlowing ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-slate-700';
+    const loadColor = electricFlowing ? 'bg-emerald-600 shadow-[0_0_8px_rgba(5,150,105,0.6)]' : 'bg-slate-700';
 
     // Sub-components for continuous lines
     const Pipe = ({ className, color, vertical = false }: { className?: string, color: string, vertical?: boolean }) => (
@@ -30,10 +53,10 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
     );
 
     return (
-        <div className="relative w-full h-[380px] bg-slate-900 rounded-xl border border-slate-700 overflow-hidden shadow-inner flex items-center justify-center select-none">
+        <div className="relative w-full h-[380px] bg-slate-300 rounded-xl border border-slate-400 overflow-hidden shadow-sm flex items-center justify-center select-none">
 
             {/* Background Grid */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none"
+            <div className="absolute inset-0 opacity-[0.20] pointer-events-none"
                 style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
             </div>
 
@@ -47,25 +70,24 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                     <div className="flex items-center">
                         {/* Cylinder */}
                         <div className="relative z-10 flex flex-col items-center group">
-                            <div className="w-12 h-16 border-2 border-slate-600 bg-slate-800 rounded-lg flex items-center justify-center shadow-lg relative overflow-hidden z-10">
-                                <div className="absolute inset-x-0 bottom-0 bg-cyan-900/40 h-2/3 transition-all duration-1000" style={{ height: `${Math.min(100, data.sensors.h2CylinderPressure * 5)}%` }}></div>
-                                <span className="text-[10px] font-bold text-slate-400 -rotate-90">H2</span>
+                            <div className={`w-12 h-16 rounded-lg flex items-center justify-center relative overflow-hidden z-10 ${STYLES.container.darkBox}`}>
+                                <div className="absolute inset-x-0 bottom-0 bg-cyan-900/50 h-2/3 transition-all duration-1000" style={{ height: `${Math.min(100, data.sensors.h2CylinderPressure * 5)}%` }}></div>
+                                <span className={`${STYLES.font.componentInnerLabel} -rotate-90`}>H2</span>
                             </div>
-                            <div className="absolute -bottom-5 w-full text-center text-[9px] text-cyan-400 font-mono bg-slate-900/80 px-1 rounded">{data.sensors.h2CylinderPressure} Mpa</div>
+                            <div className={`absolute -bottom-5 w-full text-center font-mono font-bold bg-slate-300/50 border border-slate-400 px-1 rounded shadow-sm text-[10px] text-cyan-700`}>{data.sensors.h2CylinderPressure} Mpa</div>
                         </div>
 
                         <Pipe className="w-8" color={h2Color} />
 
                         {/* Solenoid Valve */}
                         <div className="relative z-10 flex flex-col items-center">
-                            <div className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 
-                                ${data.io.h2InletValve
-                                    ? 'bg-green-500/20 border-green-400 shadow-[0_0_15px_rgba(74,222,128,0.4)]'
-                                    : 'bg-slate-800 border-slate-600'}`}>
-                                <div className={`w-1.5 h-5 rounded-full transition-all duration-300 
-                                    ${data.io.h2InletValve ? 'rotate-90 bg-green-400 scale-110' : 'bg-slate-500'}`}></div>
+                            <div className={`w-10 h-10 rounded-lg border flex items-center justify-center transition-all duration-300 z-10                                    ${data.io.h2InletValve
+                                ? 'bg-slate-700/90 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]'
+                                : STYLES.container.darkBox}`}>
+                                <div className={`w-1.5 h-6 rounded-full transition-all duration-300 
+                                    ${data.io.h2InletValve ? 'rotate-90 bg-green-500 scale-110' : 'bg-slate-400'}`}></div>
                             </div>
-                            <span className="absolute -bottom-5 text-[9px] text-slate-400 whitespace-nowrap bg-slate-900/80 px-1 rounded">氢气电磁阀</span>
+                            <span className={`absolute -bottom-6 ${STYLES.font.floatingLabel}`}>氢气电磁阀</span>
                         </div>
 
                         <Pipe className="w-10" color={h2Color} />
@@ -75,10 +97,10 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                     <div className="flex items-center justify-end">
                         {/* Fan 1 */}
                         <div className="relative z-10 flex flex-col items-center">
-                            <div className={`w-12 h-12 rounded-lg border-2 bg-slate-800 flex items-center justify-center relative z-10 ${data.io.fan1 ? 'border-sky-400 shadow-lg shadow-sky-500/20' : 'border-slate-600'}`}>
-                                <Wind className={`w-7 h-7 text-sky-400 ${data.io.fan1 ? 'animate-spin' : ''}`} />
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center relative z-10 ${data.io.fan1 ? 'border border-sky-500 bg-slate-700/90 shadow-lg shadow-sky-500/30' : STYLES.container.darkBox}`}>
+                                <Wind className={`w-7 h-7 text-sky-500 ${data.io.fan1 ? 'animate-spin' : ''}`} />
                             </div>
-                            <span className="absolute -bottom-5 text-[9px] text-slate-400 whitespace-nowrap bg-slate-900/80 px-1 rounded">风扇1 (供氧)</span>
+                            <span className={`absolute -bottom-6 ${STYLES.font.floatingLabel}`}>风扇1 (供氧)</span>
                         </div>
 
                         <Pipe className="w-[5.5rem]" color={airColor} />
@@ -90,7 +112,9 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                 <div className="relative mx-[-2px] flex flex-col items-center">
 
                     {/* The Stack Box (Z-INDEX HIGHER than valve) */}
-                    <div className="w-56 h-44 bg-slate-800/95 backdrop-blur border-2 border-slate-600 rounded-xl shadow-2xl flex flex-col relative z-30">
+                    {/* The Stack Box (Z-INDEX HIGHER than valve) */}
+                    {/* The Stack Box (Z-INDEX HIGHER than valve) */}
+                    <div className={`w-60 h-48 rounded-xl flex flex-col relative z-30 ${STYLES.container.darkBox}`}>
 
                         {/* Stack Internals */}
                         <div className="flex-1 p-3 flex flex-col justify-between">
@@ -99,26 +123,24 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                                 <div>
                                     <span className="text-sm font-bold text-slate-200 flex items-center gap-2">
                                         <Activity className="w-4 h-4 text-cyan-400" /> 燃料电堆
-                                    </span>
-                                    <span className="text-[8px] text-slate-500">PEM Fuel Cell Stack</span>
-                                </div>
+                                    </span>                                </div>
                                 {/* Heater Status */}
-                                <div className="flex flex-col items-center p-1 rounded bg-slate-900/50 border border-slate-700/50">
-                                    <Flame className={`w-3.5 h-3.5 ${data.io.heater ? 'text-red-500 animate-pulse' : 'text-slate-700'}`} />
-                                    <span className="text-[8px] text-slate-500 mt-0.5">加热膜</span>
+                                <div className="flex flex-col items-center p-1 rounded bg-slate-900 border border-slate-700">
+                                    <Flame className={`w-3.5 h-3.5 ${data.io.heater ? 'text-red-500 animate-pulse' : 'text-slate-600'}`} />
+                                    <span className="text-[8px] text-slate-200 mt-0.5">加热膜</span>
                                 </div>
                             </div>
 
                             {/* Big Metrics */}
-                            <div className="flex items-center justify-around bg-slate-900/50 rounded-lg p-2 border border-slate-700/50">
+                            <div className="flex items-center justify-around bg-slate-900/50 rounded-lg p-2 border border-slate-700">
                                 <div className="text-center">
-                                    <div className="text-[9px] text-slate-500 mb-0.5">电堆温度</div>
-                                    <div className="text-xl font-mono text-orange-400 leading-none tracking-tight">{data.sensors.stackTemp}</div>
+                                    <div className={STYLES.font.stackLabel}>电堆温度</div>
+                                    <div className={`${STYLES.font.stackValue} text-orange-500`}>{data.sensors.stackTemp}</div>
                                 </div>
-                                <div className="w-px h-8 bg-slate-700"></div>
+                                <div className="w-px h-8 bg-slate-600"></div>
                                 <div className="text-center">
-                                    <div className="text-[9px] text-slate-500 mb-0.5">输出功率</div>
-                                    <div className="text-xl font-mono text-amber-400 leading-none tracking-tight">{data.power.stackPower}</div>
+                                    <div className={STYLES.font.stackLabel}>输出功率</div>
+                                    <div className={`${STYLES.font.stackValue} text-amber-500`}>{data.power.stackPower}</div>
                                 </div>
                             </div>
                         </div>
@@ -129,12 +151,13 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                         {/* Pipe exiting stack */}
                         <div className="w-1.5 h-4 bg-slate-600"></div>
                         {/* Valve Icon */}
+                        {/* Valve Icon */}
                         <div className={`w-8 h-6 rounded border flex items-center justify-center z-10 transition-all duration-300
-                            ${data.io.h2PurgeValve ? 'bg-green-500/20 border-green-400 shadow-[0_0_10px_rgba(74,222,128,0.3)]' : 'bg-slate-800 border-slate-600'}`}>
-                            <Droplets className={`w-3.5 h-3.5 transition-colors duration-300 ${data.io.h2PurgeValve ? 'text-green-400 animate-bounce' : 'text-slate-500'}`} />
+                            ${data.io.h2PurgeValve ? 'bg-slate-700/90 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]' : STYLES.container.darkBox}`}>
+                            <Droplets className={`w-3.5 h-3.5 transition-colors duration-300 ${data.io.h2PurgeValve ? 'text-green-500 animate-bounce' : 'text-slate-500'}`} />
                         </div>
                         {/* Label */}
-                        <span className="text-[9px] text-slate-500 mt-1 whitespace-nowrap">排氢阀</span>
+                        <span className={`mt-1.5 ${STYLES.font.floatingLabel}`}>排氢阀</span>
                     </div>
                 </div>
 
@@ -146,28 +169,28 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
 
                     {/* DCF (Displays All Metrics) */}
                     <div className="relative z-10">
-                        <div className="w-36 bg-slate-800 border border-slate-600 rounded-lg p-2 shadow-lg z-10 relative">
-                            <div className="flex items-center justify-between mb-2 border-b border-slate-700 pb-1">
-                                <span className="text-[10px] font-bold text-amber-500">DCF</span>
-                                <Zap className="w-3 h-3 text-amber-500" />
+                        <div className={`w-40 rounded-lg p-2 z-10 relative ${STYLES.container.darkBox}`}>
+                            <div className="flex items-center justify-between mb-2 border-b border-slate-600 pb-1">
+                                <span className="text-xs font-bold text-amber-500">DCF-DC</span>
+                                <Zap className="w-3.5 h-3.5 text-amber-500" />
                             </div>
                             {/* DCF Metrics Grid */}
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                 <div className="flex flex-col">
-                                    <span className="text-[8px] text-slate-500">输出电压</span>
-                                    <span className="font-mono text-[10px] text-slate-300 leading-none">{data.power.dcfOutVoltage} V</span>
+                                    <span className={STYLES.font.metricKey}>输出电压</span>
+                                    <span className={STYLES.font.metricValue}>{data.power.dcfOutVoltage} V</span>
                                 </div>
                                 <div className="flex flex-col text-right">
-                                    <span className="text-[8px] text-slate-500">输出电流</span>
-                                    <span className="font-mono text-[10px] text-slate-300 leading-none">{data.power.dcfOutCurrent} A</span>
+                                    <span className={STYLES.font.metricKey}>输出电流</span>
+                                    <span className={STYLES.font.metricValue}>{data.power.dcfOutCurrent} A</span>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[8px] text-slate-500">温度</span>
-                                    <span className="font-mono text-[10px] text-slate-300 leading-none">{data.io.dcfMosTemp} °C</span>
+                                    <span className={STYLES.font.metricKey}>温度</span>
+                                    <span className={STYLES.font.metricValue}>{data.io.dcfMosTemp} °C</span>
                                 </div>
                                 <div className="flex flex-col text-right">
-                                    <span className="text-[8px] text-slate-500">效率</span>
-                                    <span className="font-mono text-[10px] text-emerald-400 leading-none">{data.power.dcfEfficiency}%</span>
+                                    <span className={STYLES.font.metricKey}>效率</span>
+                                    <span className={`${STYLES.font.metricValue} text-emerald-500`}>{data.power.dcfEfficiency}%</span>
                                 </div>
                             </div>
                         </div>
@@ -176,11 +199,12 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                     <Wire className="w-8" color={elecColor} />
 
                     {/* DCL (Simple Block + Fan 2 below) */}
+                    {/* DCL (Simple Block + Fan 2 below) */}
                     <div className="relative z-10 flex flex-col items-center">
 
                         {/* DCL Box */}
-                        <div className="w-16 h-16 bg-slate-800 border border-slate-600 rounded-lg flex items-center justify-center shadow-lg relative z-20">
-                            <span className="text-xs font-bold text-indigo-500">DCL</span>
+                        <div className={`w-16 h-16 rounded-lg flex items-center justify-center relative z-20 ${STYLES.container.darkBox}`}>
+                            <span className="text-sm font-bold text-indigo-400">DCL</span>
                         </div>
 
                         {/* Connection to Fan 2 (Pipe going down) */}
@@ -189,10 +213,11 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
 
                             {/* Fan 2 Component */}
                             <div className="flex flex-col items-center">
-                                <div className={`w-10 h-10 rounded border bg-slate-800 flex items-center justify-center relative z-10 ${data.io.fan2 ? 'border-indigo-400 shadow-lg shadow-indigo-500/20' : 'border-slate-600'}`}>
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center relative z-10 
+                                    ${data.io.fan2 ? 'border border-indigo-500 bg-slate-700/90 shadow-lg shadow-indigo-500/30' : STYLES.container.darkBox}`}>
                                     <Wind className={`w-5 h-5 text-indigo-400 ${data.io.fan2 ? 'animate-spin' : ''}`} />
                                 </div>
-                                <span className="text-[9px] text-slate-500 mt-1 whitespace-nowrap">风扇2</span>
+                                <span className={`mt-1.5 ${STYLES.font.floatingLabel}`}>风扇2</span>
                             </div>
                         </div>
 
@@ -202,15 +227,15 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
 
                     {/* Battery */}
                     <div className="relative z-10 flex flex-col items-center">
-                        <div className={`w-14 h-20 bg-slate-800 border-2 rounded flex items-center justify-center shadow-lg transition-colors duration-500 ${electricFlowing ? 'border-emerald-500/50 shadow-emerald-500/20' : 'border-slate-600'}`}>
-                            <Battery className={`w-6 h-8 ${electricFlowing ? 'text-emerald-400 fill-emerald-500/20 animate-pulse' : 'text-slate-600'}`} />
+                        <div className={`w-14 h-20 border rounded flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.15)] transition-colors duration-500 
+                            ${electricFlowing ? 'bg-slate-700/90 border-emerald-500/50 shadow-emerald-500/20' : STYLES.container.darkBox}`}>
+                            <Battery className={`w-6 h-8 ${electricFlowing ? 'text-emerald-500 fill-emerald-500/20 animate-pulse' : 'text-slate-400'}`} />
                         </div>
-                        <span className="absolute -bottom-5 text-[9px] text-slate-400 font-bold bg-slate-900/80 px-1 rounded">锂电池</span>
+                        <span className={`absolute -bottom-6 ${STYLES.font.floatingLabel}`}>锂电池</span>
                     </div>
+
                 </div>
-
             </div>
-
         </div>
     );
 };

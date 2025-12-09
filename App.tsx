@@ -7,7 +7,8 @@ import { SchematicView } from './components/SchematicView';
 import { Gauge } from './components/Gauge';
 import { ControlPanel } from './components/ControlPanel';
 import { RealTimeChart } from './components/Charts';
-import { Activity, AlertTriangle, Wifi, WifiOff, LayoutDashboard, LineChart, Settings2, AlertCircle } from 'lucide-react';
+import { AlarmDrawer } from './components/AlarmDrawer';
+import { Activity, AlertTriangle, Wifi, WifiOff, LayoutDashboard, LineChart, Settings2, AlertCircle, Maximize2 } from 'lucide-react';
 
 // Amount of history points to keep for charts
 const HISTORY_LENGTH = 100;
@@ -27,6 +28,7 @@ function App() {
     const [control, setControl] = useState<ControlState>(INITIAL_CONTROL_STATE);
     const [isConnected, setIsConnected] = useState(false);
     const [activeView, setActiveView] = useState<ViewType>('monitor');
+    const [isAlarmDrawerOpen, setIsAlarmDrawerOpen] = useState(false);
     const [connectionConfig, setConnectionConfig] = useState<ConnectionConfig>({
         interfaceType: 'virtual',
         channel: 'can0',
@@ -169,22 +171,21 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-200 font-sans selection:bg-cyan-500/30 flex flex-col">
+        <div className="min-h-screen bg-slate-200 text-slate-800 font-sans selection:bg-cyan-500/30 flex flex-col">
 
             {/* HEADER */}
-            <header className="bg-slate-950 border-b border-slate-800 px-6 py-3 flex justify-between items-center shadow-md z-50 sticky top-0">
+            <header className="bg-slate-950 border-b border-slate-800 px-6 py-3 flex justify-between items-center shadow-sm z-50 sticky top-0">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/20">
                         <Activity className="text-white w-6 h-6" />
                     </div>
                     <div className="hidden md:block">
                         <h1 className="text-lg font-bold tracking-tight text-white leading-tight">氢燃料电池监控系统</h1>
-                        <p className="text-[10px] text-slate-500 font-mono">FCU-2025-X01</p>
                     </div>
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
+                <div className="flex bg-slate-200 p-1 rounded-lg border border-slate-300">
                     {[
                         { id: 'monitor', label: '实时监控', icon: LayoutDashboard },
                         { id: 'charts', label: '数据曲线', icon: LineChart },
@@ -194,8 +195,8 @@ function App() {
                             key={tab.id}
                             onClick={() => setActiveView(tab.id as ViewType)}
                             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeView === tab.id
-                                ? 'bg-slate-800 text-cyan-400 shadow-sm ring-1 ring-slate-700'
-                                : 'text-slate-500 hover:text-slate-300'
+                                ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-300'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
                                 }`}
                         >
                             <tab.icon className="w-4 h-4" />
@@ -211,9 +212,9 @@ function App() {
                             {/* PROMINENT FAULT DISPLAY IN HEADER */}
                             {machine.status.state === SystemState.FAULT ? (
                                 <div className="flex items-center gap-2">
-                                    <AlertTriangle className="w-5 h-5 animate-pulse" />
-                                    <span>{getStatusText(machine.status.state)}</span>
-                                    <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded ml-1 animate-pulse shadow-red-500/50 shadow-sm whitespace-nowrap">
+                                    <AlertTriangle className="w-5 h-5 animate-pulse text-red-600" />
+                                    <span className="text-red-600">{getStatusText(machine.status.state)}</span>
+                                    <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-1 animate-pulse shadow-red-500/50 shadow-sm whitespace-nowrap">
                                         {FAULT_CODES[machine.io.faultCode] || `代码: ${machine.io.faultCode}`}
                                     </span>
                                 </div>
@@ -248,64 +249,73 @@ function App() {
 
                         {/* 1. Compact Gauges Row */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <Gauge size="small" label="电堆电压" value={machine.power.stackVoltage} unit="V" max={60} color="text-yellow-400" />
-                            <Gauge size="small" label="电堆电流" value={machine.power.stackCurrent} unit="A" max={50} color="text-yellow-400" />
-                            <Gauge size="small" label="电堆温度" value={machine.sensors.stackTemp} unit="°C" min={-20} max={100} color="text-orange-400" />
-                            <Gauge size="small" label="氢气入口压力" value={machine.sensors.h2InletPressure} unit="MPa" max={2.5} color="text-cyan-400" />
+                            <Gauge size="small" label="电堆电压" value={machine.power.stackVoltage} unit="V" max={60} color="text-yellow-600" />
+                            <Gauge size="small" label="电堆电流" value={machine.power.stackCurrent} unit="A" max={50} color="text-blue-600" />
+                            <Gauge size="small" label="电堆温度" value={machine.sensors.stackTemp} unit="°C" min={-20} max={100} color="text-orange-600" />
+                            <Gauge size="small" label="氢气入口压力" value={machine.sensors.h2InletPressure} unit="MPa" max={2.5} color="text-cyan-600" />
                         </div>
 
                         {/* 3. Additional Mini Data (Cards) */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="bg-slate-800/50 rounded border border-slate-700 p-2 flex justify-between items-center">
-                                <span className="text-xs text-slate-500">DCF 输出功率</span>
-                                <span className="font-mono text-sm text-slate-300">{machine.power.dcfPower} W</span>
+                            <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
+                                <span className="text-xs text-slate-500 font-medium">DCF 输出功率</span>
+                                <span className="font-mono text-sm text-slate-700 font-bold">{machine.power.dcfPower} W</span>
                             </div>
-                            <div className="bg-slate-800/50 rounded border border-slate-700 p-2 flex justify-between items-center">
-                                <span className="text-xs text-slate-500">DCF 温度</span>
-                                <span className="font-mono text-sm text-slate-300">{machine.io.dcfMosTemp} °C</span>
+                            <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
+                                <span className="text-xs text-slate-500 font-medium">DCF 温度</span>
+                                <span className="font-mono text-sm text-slate-700 font-bold">{machine.io.dcfMosTemp} °C</span>
                             </div>
-                            <div className="bg-slate-800/50 rounded border border-slate-700 p-2 flex justify-between items-center">
-                                <span className="text-xs text-slate-500">风扇1 占空比</span>
-                                <span className="font-mono text-sm text-slate-300">{machine.io.fan1Duty} %</span>
+                            <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
+                                <span className="text-xs text-slate-500 font-medium">风扇1 占空比</span>
+                                <span className="font-mono text-sm text-slate-700 font-bold">{machine.io.fan1Duty} %</span>
                             </div>
-                            <div className="bg-slate-800/50 rounded border border-slate-700 p-2 flex justify-between items-center">
-                                <span className="text-xs text-slate-500">氢气浓度</span>
-                                <span className="font-mono text-sm text-slate-300">{machine.sensors.h2Concentration} %</span>
+                            <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
+                                <span className="text-xs text-slate-500 font-medium">氢气浓度</span>
+                                <span className="font-mono text-sm text-slate-700 font-bold">{machine.sensors.h2Concentration} %</span>
                             </div>
                         </div>
 
                         {/* 4. Fault Table (Bottom, Full Width) */}
-                        <div className="bg-slate-800 rounded-xl border border-slate-700 flex flex-col overflow-hidden h-[250px] shadow-lg">
-                            <div className="bg-slate-900/50 p-3 border-b border-slate-700 flex items-center justify-between">
-                                <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4 text-red-400" /> 报警信息
+                        <div className="bg-slate-50 rounded-xl border border-slate-300 flex flex-col overflow-hidden h-[250px] shadow-sm">
+                            <div className="bg-slate-100 p-3 border-b border-slate-300 flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 text-red-600" /> 报警信息
                                 </h3>
-                                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full">{faultLogs.length} 条记录</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-500 bg-white border border-slate-300 px-2 py-0.5 rounded-full shadow-sm">{faultLogs.length} 条记录</span>
+                                    <button
+                                        onClick={() => setIsAlarmDrawerOpen(true)}
+                                        className="p-1 hover:bg-slate-200 rounded text-slate-500 transition-colors"
+                                        title="展开查看全部"
+                                    >
+                                        <Maximize2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex-1 overflow-auto p-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
+                            <div className="flex-1 overflow-auto p-0 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
                                 <table className="w-full text-xs text-left">
-                                    <thead className="text-slate-500 bg-slate-900 sticky top-0 font-medium z-10">
+                                    <thead className="text-slate-500 bg-slate-100 sticky top-0 font-medium z-10 border-b border-slate-300">
                                         <tr>
-                                            <th className="px-3 py-2 bg-slate-900">时间</th>
-                                            <th className="px-3 py-2 bg-slate-900">等级</th>
-                                            <th className="px-3 py-2 bg-slate-900">代码</th>
-                                            <th className="px-3 py-2 bg-slate-900">说明</th>
+                                            <th className="px-3 py-2 bg-slate-50">时间</th>
+                                            <th className="px-3 py-2 bg-slate-50">等级</th>
+                                            <th className="px-3 py-2 bg-slate-50">代码</th>
+                                            <th className="px-3 py-2 bg-slate-50">说明</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-700/50">
+                                    <tbody className="divide-y divide-slate-100">
                                         {faultLogs.length === 0 ? (
                                             <tr>
-                                                <td colSpan={4} className="px-4 py-8 text-center text-slate-600 italic">
+                                                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 italic">
                                                     系统正常，无报警记录
                                                 </td>
                                             </tr>
                                         ) : (
                                             faultLogs.map(log => (
-                                                <tr key={log.id} className="hover:bg-slate-700/30 transition-colors">
-                                                    <td className="px-3 py-2 font-mono text-slate-400">{log.time}</td>
+                                                <tr key={log.id} className="hover:bg-white transition-colors">
+                                                    <td className="px-3 py-2 font-mono text-slate-600">{log.time}</td>
                                                     <td className={`px-3 py-2 font-bold ${getLevelColor(log.level)}`}>{getLevelText(log.level)}</td>
                                                     <td className="px-3 py-2 font-mono text-slate-500">0x{log.code.toString(16).toUpperCase().padStart(2, '0')}</td>
-                                                    <td className="px-3 py-2 text-slate-300 w-1/2">{log.description}</td>
+                                                    <td className="px-3 py-2 text-slate-700 w-1/2">{log.description}</td>
                                                 </tr>
                                             ))
                                         )}
@@ -319,9 +329,9 @@ function App() {
                 {/* VIEW: CHARTS */}
                 {activeView === 'charts' && (
                     <div className="grid grid-cols-1 gap-4 h-full max-w-6xl mx-auto animate-in slide-in-from-right-4 duration-300">
-                        <RealTimeChart data={history} title="电堆电压曲线" dataKey="voltage" unit="V" color="#facc15" />
-                        <RealTimeChart data={history} title="电堆电流曲线" dataKey="current" unit="A" color="#38bdf8" />
-                        <RealTimeChart data={history} title="电堆温度曲线" dataKey="temp" unit="°C" color="#fb923c" />
+                        <RealTimeChart data={history} title="电堆电压曲线" dataKey="voltage" unit="V" color="#ca8a04" />
+                        <RealTimeChart data={history} title="电堆电流曲线" dataKey="current" unit="A" color="#0284c7" />
+                        <RealTimeChart data={history} title="电堆温度曲线" dataKey="temp" unit="°C" color="#ea580c" />
                     </div>
                 )}
 
@@ -340,9 +350,15 @@ function App() {
             </main>
 
             {/* FOOTER */}
-            <div className="bg-slate-950 border-t border-slate-800 py-1 px-4 text-center text-[10px] text-slate-600 font-mono">
+            <div className="bg-slate-50 border-t border-slate-200 py-1 px-4 text-center text-[10px] text-slate-400 font-mono">
                 CAN Rx: 0x18FF01F0,  0x18FF02F0, 0x18FF03F0, 0x18FF04F0 | Tx: 0x18FF10A0 | Bitrate: {connectionConfig.bitrate} bps
             </div>
+
+            <AlarmDrawer
+                isOpen={isAlarmDrawerOpen}
+                onClose={() => setIsAlarmDrawerOpen(false)}
+                logs={faultLogs}
+            />
 
         </div>
     );

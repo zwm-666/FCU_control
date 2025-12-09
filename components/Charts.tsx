@@ -11,8 +11,8 @@ interface ChartProps {
 
 export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, color, unit }) => {
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 h-64 flex flex-col">
-      <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">{title}</h3>
+    <div className="bg-slate-50 rounded-xl border border-slate-300 p-4 h-64 flex flex-col shadow-sm">
+      <h3 className="text-slate-600 text-xs font-bold uppercase tracking-wider mb-2">{title}</h3>
       <div className="flex-1 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
@@ -22,16 +22,16 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
             <XAxis dataKey="time" hide />
             <YAxis
-              tick={{ fill: '#94a3b8', fontSize: 10 }}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
               width={30}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
+              contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', color: '#1e293b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               itemStyle={{ color: color }}
               formatter={(value: number) => [`${value} ${unit}`, title]}
               labelFormatter={() => ''}
