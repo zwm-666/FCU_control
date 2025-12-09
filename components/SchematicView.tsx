@@ -20,8 +20,8 @@ const STYLES = {
         componentInnerLabel: "text-xs font-bold text-slate-300",
     },
     container: {
-        // Dark component containers
-        darkBox: "bg-slate-700/90 border border-slate-500 shadow-[0_0_20px_rgba(0,0,0,0.15)]",
+        // Dark component containers - increased z-index to sit above pipes
+        darkBox: "bg-slate-700/90 border border-slate-500 shadow-[0_0_20px_rgba(0,0,0,0.15)] relative z-30",
     }
 };
 
@@ -67,7 +67,7 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                 <div className="flex flex-col gap-10">
 
                     {/* TOP LINE: H2 -> Valve -> Stack */}
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-0">
                         {/* Cylinder */}
                         <div className="relative z-10 flex flex-col items-center group">
                             <div className={`w-12 h-16 rounded-lg flex items-center justify-center relative overflow-hidden z-10 ${STYLES.container.darkBox}`}>
@@ -77,10 +77,10 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                             <div className={`absolute -bottom-5 w-full text-center font-mono font-bold bg-slate-300/50 border border-slate-400 px-1 rounded shadow-sm text-[10px] text-cyan-700`}>{data.sensors.h2CylinderPressure} Mpa</div>
                         </div>
 
-                        <Pipe className="w-8" color={h2Color} />
+                        <Pipe className="w-8 -mx-0.5 relative z-20" color={h2Color} />
 
                         {/* Solenoid Valve */}
-                        <div className="relative z-10 flex flex-col items-center">
+                        <div className="relative z-10 flex flex-col items-center -mx-0.5">
                             <div className={`w-10 h-10 rounded-lg border flex items-center justify-center transition-all duration-300 z-10                                    ${data.io.h2InletValve
                                 ? 'bg-slate-700/90 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]'
                                 : STYLES.container.darkBox}`}>
@@ -94,7 +94,7 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                     </div>
 
                     {/* BOTTOM LINE: Fan -> Stack */}
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-0">
                         {/* Fan 1 */}
                         <div className="relative z-10 flex flex-col items-center">
                             <div className={`w-12 h-12 rounded-lg flex items-center justify-center relative z-10 ${data.io.fan1 ? 'border border-sky-500 bg-slate-700/90 shadow-lg shadow-sky-500/30' : STYLES.container.darkBox}`}>
@@ -103,7 +103,7 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                             <span className={`absolute -bottom-6 ${STYLES.font.floatingLabel}`}>风扇1 (供氧)</span>
                         </div>
 
-                        <Pipe className="w-[5.5rem]" color={airColor} />
+                        <Pipe className="w-[5.5rem] relative -left-1 z-0" color={airColor} />
                     </div>
                 </div>
 
@@ -167,9 +167,11 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
 
                     <Wire className="w-10" color={elecColor} />
 
-                    {/* DCF (Displays All Metrics) */}
-                    <div className="relative z-10">
-                        <div className={`w-40 rounded-lg p-2 z-10 relative ${STYLES.container.darkBox}`}>
+                    {/* DCF Complex (Fan 2 + DCF) */}
+                    <div className="relative flex flex-col items-center justify-center">
+
+                        {/* DCF Unit - In Flow for Centering */}
+                        <div className={`w-40 rounded-lg p-2 ${STYLES.container.darkBox}`}>
                             <div className="flex items-center justify-between mb-2 border-b border-slate-600 pb-1">
                                 <span className="text-xs font-bold text-amber-500">DCF-DC</span>
                                 <Zap className="w-3.5 h-3.5 text-amber-500" />
@@ -194,44 +196,53 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <Wire className="w-8" color={elecColor} />
-
-                    {/* DCL (Simple Block + Fan 2 below) */}
-                    {/* DCL (Simple Block + Fan 2 below) */}
-                    <div className="relative z-10 flex flex-col items-center">
-
-                        {/* DCL Box */}
-                        <div className={`w-16 h-16 rounded-lg flex items-center justify-center relative z-20 ${STYLES.container.darkBox}`}>
-                            <span className="text-sm font-bold text-indigo-400">DCL</span>
-                        </div>
-
-                        {/* Connection to Fan 2 (Pipe going down) */}
-                        <div className="absolute top-full flex flex-col items-center z-10">
-                            <Pipe className="h-6" color={fan2Color} vertical />
-
-                            {/* Fan 2 Component */}
-                            <div className="flex flex-col items-center">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center relative z-10 
-                                    ${data.io.fan2 ? 'border border-indigo-500 bg-slate-700/90 shadow-lg shadow-indigo-500/30' : STYLES.container.darkBox}`}>
-                                    <Wind className={`w-5 h-5 text-indigo-400 ${data.io.fan2 ? 'animate-spin' : ''}`} />
-                                </div>
-                                <span className={`mt-1.5 ${STYLES.font.floatingLabel}`}>风扇2</span>
+                        {/* Fan 2 (Cooling DCF) - Absolute Position Below */}
+                        <div className="absolute top-full flex flex-col items-center mt-[-4px] z-20">
+                            <Pipe className="h-4 w-1.5" color={fan2Color} vertical />
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center relative z-30 
+                                ${data.io.fan2 ? 'border border-indigo-500 bg-slate-700/90 shadow-lg shadow-indigo-500/30' : STYLES.container.darkBox}`}>
+                                <Wind className={`w-5 h-5 text-indigo-400 ${data.io.fan2 ? 'animate-spin' : ''}`} />
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className={`${STYLES.font.floatingLabel} !shadow-none !bg-transparent`}>风扇2</span>
                             </div>
                         </div>
-
                     </div>
 
-                    <Wire className="w-10" color={loadColor} />
+                    {/* Output Distribution (Parallel Split) */}
+                    <div className="flex items-center -ml-1 gap-0">
+                        {/* Main output wire from DCF */}
+                        <Wire className="w-8 relative z-20" color={elecColor} />
 
-                    {/* Battery */}
-                    <div className="relative z-10 flex flex-col items-center">
-                        <div className={`w-14 h-20 border rounded flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.15)] transition-colors duration-500 
-                            ${electricFlowing ? 'bg-slate-700/90 border-emerald-500/50 shadow-emerald-500/20' : STYLES.container.darkBox}`}>
-                            <Battery className={`w-6 h-8 ${electricFlowing ? 'text-emerald-500 fill-emerald-500/20 animate-pulse' : 'text-slate-400'}`} />
+                        {/* Splitter Node */}
+                        <div className="flex flex-col justify-center gap-6 relative">
+                            {/* Vertical Bus Bar connecting branches - Unified Color, Square Ends */}
+                            <div className={`absolute left-0 top-[34px] bottom-[30px] w-2 ${elecColor} rounded-none`}></div>
+
+                            {/* Top Branch: Battery */}
+                            <div className="flex items-center pl-0">
+                                <Wire className="w-8 -mr-1 relative z-20" color={elecColor} />
+                                <div className="flex flex-col items-center ml-[-2px]">
+                                    <div className={`w-16 h-16 border rounded flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.15)] transition-colors duration-500 relative z-30
+                                        ${electricFlowing ? 'bg-slate-700/90 border-emerald-500/50 shadow-emerald-500/20' : STYLES.container.darkBox}`}>
+
+                                        <Battery className={`w-6 h-8 ${electricFlowing ? 'text-emerald-500 fill-emerald-500/20 animate-pulse' : 'text-slate-400'}`} />
+                                    </div>
+                                    <span className={`absolute -top-4 ${STYLES.font.floatingLabel}`}>锂电池</span>
+                                </div>
+                            </div>
+
+                            {/* Bottom Branch: DCL */}
+                            <div className="flex items-center pl-0">
+                                <Wire className="w-8 -mr-1 relative z-20" color={elecColor} />
+                                <div className="flex flex-col items-center ml-[-2px]">
+                                    <div className={`w-16 h-16 rounded-lg flex items-center justify-center relative z-20 ${STYLES.container.darkBox}`}>
+                                        <span className="text-sm font-bold text-indigo-400">DCL</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <span className={`absolute -bottom-6 ${STYLES.font.floatingLabel}`}>锂电池</span>
                     </div>
 
                 </div>
