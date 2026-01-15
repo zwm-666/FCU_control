@@ -4,7 +4,7 @@ Configuration for CAN Backend Server
 
 # CAN Interface Selection
 # Options: "zlg" (Hardware), "virtual" (Simulation)
-CAN_INTERFACE_TYPE = "virtual"
+CAN_INTERFACE_TYPE = "zlg"
 
 # ZLG USB-CAN Device Configuration
 # Device Type (for USBCAN devices):

@@ -72,7 +72,7 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                         <div className="relative z-10 flex flex-col items-center group">
                             <div className={`w-12 h-16 rounded-lg flex items-center justify-center relative overflow-hidden z-10 ${STYLES.container.darkBox}`}>
                                 <div className="absolute inset-x-0 bottom-0 bg-cyan-900/50 h-2/3 transition-all duration-1000" style={{ height: `${Math.min(100, data.sensors.h2CylinderPressure * 5)}%` }}></div>
-                                <span className={`${STYLES.font.componentInnerLabel} -rotate-90`}>H2</span>
+                                <span className={`${STYLES.font.componentInnerLabel}`}>H2</span>
                             </div>
                             <div className={`absolute -bottom-5 w-full text-center font-mono font-bold bg-slate-300/50 border border-slate-400 px-1 rounded shadow-sm text-[10px] text-cyan-700`}>{data.sensors.h2CylinderPressure} Mpa</div>
                         </div>
@@ -135,12 +135,12 @@ export const SchematicView: React.FC<Props> = ({ data }) => {
                             <div className="flex items-center justify-around bg-slate-900/50 rounded-lg p-2 border border-slate-700">
                                 <div className="text-center">
                                     <div className={STYLES.font.stackLabel}>电堆温度</div>
-                                    <div className={`${STYLES.font.stackValue} text-orange-500`}>{data.sensors.stackTemp}</div>
+                                    <div className={`${STYLES.font.stackValue} text-orange-500`}>{data.sensors.stackTemp} <span className="text-sm">°C</span></div>
                                 </div>
                                 <div className="w-px h-8 bg-slate-600"></div>
                                 <div className="text-center">
                                     <div className={STYLES.font.stackLabel}>输出功率</div>
-                                    <div className={`${STYLES.font.stackValue} text-amber-500`}>{data.power.stackPower}</div>
+                                    <div className={`${STYLES.font.stackValue} text-amber-500`}>{data.power.stackPower} <span className="text-sm">kW</span></div>
                                 </div>
                             </div>
                         </div>

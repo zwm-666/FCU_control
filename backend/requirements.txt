@@ -1,1 +1,4 @@
 websockets
+scikit-learn
+joblib
+numpy

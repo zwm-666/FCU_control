@@ -96,6 +96,26 @@ export interface ConnectionConfig {
   bitrate: string;
 }
 
+// 诊断结果
+export type DiagnosisLabel = 'normal' | 'flooding' | 'membrane_drying' | 'thermal_issue';
+
+export interface DiagnosisResult {
+  label: DiagnosisLabel;
+  label_cn: string;
+  confidence: number;  // 0-100
+  probabilities: Record<DiagnosisLabel, number>;
+  is_trained: boolean;
+  sample_count: number;
+  timestamp: number;
+}
+
+export const DIAGNOSIS_LABELS_CN: Record<DiagnosisLabel, string> = {
+  normal: "正常",
+  flooding: "水淹故障",
+  membrane_drying: "膜干燥",
+  thermal_issue: "热管理异常"
+};
+
 export const FAULT_CODES: Record<number, string> = {
   0x00: "系统正常",
   0x01: "DCF 输入欠压 (严重)",

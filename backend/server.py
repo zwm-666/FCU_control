@@ -21,9 +21,17 @@ from config import (
     CAN_BITRATE, WEBSOCKET_HOST, WEBSOCKET_PORT,
     CAN_TX_ID, BROADCAST_RATE
 )
-from can_protocol import (
-    MachineState, MESSAGE_PARSERS, generate_control_packet
+from can_protocol1 import (
+    MachineState, MESSAGE_PARSERS, generate_control_packets
 )
+
+# 诊断模块
+try:
+    from diagnosis import OnlineDiagnosis
+    DIAGNOSIS_AVAILABLE = True
+except ImportError as e:
+    DIAGNOSIS_AVAILABLE = False
+    print(f"警告: 诊断模块加载失败: {e}")
 
 # Configure logging
 logging.basicConfig(
@@ -252,6 +260,7 @@ class VirtualDriver(CANDriver):
                 if cmd_flags & 0x10: new_io |= 0x20 # Fan2 (Command bit 4 -> IO bit 5)
                 
                 self.io_flags = new_io
+                logger.info(f"🔧 虚拟IO更新: io_flags=0x{self.io_flags:02X} (inlet={bool(new_io&0x01)}, purge={bool(new_io&0x02)}, heater={bool(new_io&0x08)}, fan1={bool(new_io&0x10)}, fan2={bool(new_io&0x20)})")
                 
                 # Fan Speed
                 self.fan1_duty = data[2]
@@ -270,7 +279,6 @@ class ZLGDriver(CANDriver):
         self.is_open = False
         self._load_dll()
         
-    # ... (Keep existing _load_dll implementation) ...
     def _load_dll(self):
         """Load ControlCAN.dll from local directory"""
         if os.name == 'nt':
@@ -430,6 +438,16 @@ class CANWebSocketServer:
         self.clients: Set[WebSocketServerProtocol] = set()
         self.running = False
         
+        # 初始化诊断模块
+        self.diagnosis = None
+        if DIAGNOSIS_AVAILABLE:
+            try:
+                model_dir = os.path.join(os.path.dirname(__file__), "models")
+                self.diagnosis = OnlineDiagnosis(model_dir=model_dir)
+                logger.info("✓ 诊断模块初始化完成")
+            except Exception as e:
+                logger.error(f"诊断模块初始化失败: {e}")
+        
     async def start(self):
         """Start the server"""
         self.running = True
@@ -485,13 +503,25 @@ class CANWebSocketServer:
                 logger.info(f"Frontend should connect to: ws://localhost:{WEBSOCKET_PORT}")
                 
                 # Keep running
-                await asyncio.gather(can_task, broadcast_task)
+                try:
+                    await asyncio.gather(can_task, broadcast_task)
+                except asyncio.CancelledError:
+                    logger.info("Tasks cancelled, shutting down gracefully")
+                    can_task.cancel()
+                    broadcast_task.cancel()
+                    # Wait for tasks to finish
+                    await asyncio.gather(can_task, broadcast_task, return_exceptions=True)
         except Exception as e:
             logger.error(f"WebSocket server failed: {e}")
             
     async def can_receive_loop(self):
         """Continuously read CAN messages"""
         logger.info("CAN receive loop started")
+        
+        # 添加调试计数器
+        poll_count = 0
+        msg_count = 0
+        last_stats_time = time.time()
         
         while self.running:
             try:
@@ -501,16 +531,36 @@ class CANWebSocketServer:
                 # We can run it in executor if it blocks, but let's try direct call first.
                 
                 messages = self.driver.receive(batch_size=50) # Batch read
+                poll_count += 1
                 
                 if messages:
+                    msg_count += len(messages)
+                    # 显示每条消息的ID和数据
                     for msg_dict in messages:
+                        data_hex = msg_dict['data'].hex().upper()
+                        # 格式化为 XX XX XX XX 便于阅读
+                        data_formatted = ' '.join([data_hex[i:i+2] for i in range(0, len(data_hex), 2)])
+                        logger.info(f"📥 CAN RX | ID: 0x{msg_dict['arbitration_id']:08X} | 数据: {data_formatted}")
+                        
                         # Convert to object for compatibility
                         msg = SimpleMessage(msg_dict['arbitration_id'], msg_dict['data'], msg_dict['is_extended_id'])
                         await self.process_can_message(msg)
                 
+                # 每30秒输出一次统计信息
+                current_time = time.time()
+                if current_time - last_stats_time >= 30:
+                    logger.info(f"📊 CAN接收统计: 轮询次数={poll_count}, 收到消息={msg_count}")
+                    if msg_count == 0:
+                        logger.warning("⚠️ 警告: 30秒内未收到任何CAN消息，请检查FCU是否正常发送数据")
+                    last_stats_time = current_time
+                
                 # Sleep briefly to yield to event loop
                 await asyncio.sleep(0.01) 
                     
+            except asyncio.CancelledError:
+                # Task was cancelled, exit gracefully
+                logger.info("CAN receive loop cancelled")
+                break
             except Exception as e:
                 logger.error(f"Error in CAN receive loop: {e}")
                 await asyncio.sleep(0.1)
@@ -522,45 +572,82 @@ class CANWebSocketServer:
         # Check if this is a known message
         if can_id in MESSAGE_PARSERS:
             try:
-                parser = MESSAGE_PARSERS[can_id]
-                parser(msg.data, self.machine_state)
-                
-                # Update timestamp
+                # 先设置连接状态和时间戳，确保解析函数能看到
                 self.machine_state.last_update = int(time.time() * 1000)
                 self.machine_state.connected = True
+                
+                # 然后解析消息
+                parser = MESSAGE_PARSERS[can_id]
+                parser(msg.data, self.machine_state)
                 
                 # Log occasionally (every 100 messages for ID 0x18FF01F0)
                 if can_id == 0x18FF01F0 and self.machine_state.status.get("heartbeat", 0) % 100 == 0:
                     logger.info(f"CAN RX: 0x{can_id:08X} - Heartbeat: {self.machine_state.status.get('heartbeat')}")
             except Exception as e:
-                logger.warning(f"Error parsing message 0x{can_id:08X}: {e}")
+                logger.warning(f"❌ Error parsing message 0x{can_id:08X}: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            # 记录未识别的CAN ID (只记录一次)
+            if not hasattr(self, '_unknown_ids'):
+                self._unknown_ids = set()
+                # 启动时显示已配置的CAN ID
+                logger.info(f"📋 已配置的CAN ID: {[f'0x{id:08X}' for id in MESSAGE_PARSERS.keys()]}")
+            if can_id not in self._unknown_ids:
+                self._unknown_ids.add(can_id)
+                logger.warning(f"⚠️ 收到未识别的CAN ID: 0x{can_id:08X}, 数据: {msg.data.hex()}")
     
     async def broadcast_loop(self):
         """Broadcast machine state to all connected clients periodically"""
         interval = 1.0 / BROADCAST_RATE
+        broadcast_count = 0
         
         while self.running:
-            if self.clients:
-                try:
-                    message = json.dumps({
-                        "type": "machine_state",
-                        "data": self.machine_state.to_dict()
-                    })
-                    
-                    # Send to all connected clients
-                    disconnected = set()
-                    for client in self.clients:
-                        try:
-                            await client.send(message)
-                        except websockets.exceptions.ConnectionClosed:
-                            disconnected.add(client)
-                    
-                    # Remove disconnected clients
-                    self.clients -= disconnected
-                except Exception as e:
-                    logger.error(f"Error broadcasting state: {e}")
-            
-            await asyncio.sleep(interval)
+            try:
+                if self.clients:
+                    try:
+                        # 获取诊断结果
+                        diagnosis_result = None
+                        if self.diagnosis:
+                            diagnosis_result = self.diagnosis.predict(self.machine_state.to_dict())
+                        
+                        message = json.dumps({
+                            "type": "machine_state",
+                            "data": self.machine_state.to_dict(),
+                            "diagnosis": diagnosis_result
+                        })
+                        
+                        # Send to all connected clients
+                        disconnected = set()
+                        for client in self.clients:
+                            try:
+                                await client.send(message)
+                            except websockets.exceptions.ConnectionClosed:
+                                disconnected.add(client)
+                        
+                        # Remove disconnected clients
+                        self.clients -= disconnected
+                        
+                        broadcast_count += 1
+                        # 每10次广播输出一次日志
+                        if broadcast_count % 10 == 0:
+                            logger.info(f"📡 已向 {len(self.clients)} 个客户端广播状态 (第 {broadcast_count} 次)")
+                        # 前5次广播显示完整数据，便于调试
+                        if broadcast_count <= 5:
+                            state_data = self.machine_state.to_dict()
+                            logger.info(f"🔍 广播数据: connected={state_data.get('connected')}, "
+                                       f"lastUpdate={state_data.get('lastUpdate')}, "
+                                       f"stackVoltage={state_data.get('power', {}).get('stackVoltage')}, "
+                                       f"heartbeat={state_data.get('status', {}).get('heartbeat')}")
+                            
+                    except Exception as e:
+                        logger.error(f"Error broadcasting state: {e}")
+                
+                await asyncio.sleep(interval)
+            except asyncio.CancelledError:
+                # Task was cancelled, exit gracefully
+                logger.info("Broadcast loop cancelled")
+                break
     
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """Handle a WebSocket client connection"""
@@ -600,16 +687,38 @@ class CANWebSocketServer:
                 # Extract control data
                 control = data.get("data", {})
                 
-                # Generate CAN packet
-                can_data = generate_control_packet(control)
+                # Generate multiple CAN packets (new protocol)
+                packets = generate_control_packets(control)
                 
-                # Send to CAN bus
-                success = self.driver.send(CAN_TX_ID, can_data, is_extended=True)
+                # Send all packets to CAN bus
+                sent_count = 0
+                for can_id, can_data in packets:
+                    success = self.driver.send(can_id, can_data, is_extended=True)
+                    if success:
+                        sent_count += 1
+                        logger.info(f"📤 CAN TX | ID: 0x{can_id:08X} | 数据: {can_data.hex().upper()}")
+                    else:
+                        logger.warning(f"❌ Failed to send CAN TX: 0x{can_id:08X}")
                 
-                if success:
-                    logger.info(f"CAN TX: 0x{CAN_TX_ID:08X} - Command: {control.get('command', 0)}")
+                logger.info(f"✅ 发送控制命令: {sent_count}/{len(packets)} 个报文成功")
+            
+            elif msg_type == "diagnosis_feedback":
+                # 处理诊断反馈（用户标注）
+                feedback = data.get("data", {})
+                label = feedback.get("label")  # "normal", "flooding", "membrane_drying", "thermal_issue"
+                
+                if self.diagnosis and label:
+                    # 使用当前机器状态进行增量学习
+                    success = self.diagnosis.add_feedback(
+                        self.machine_state.to_dict(),
+                        label
+                    )
+                    if success:
+                        logger.info(f"✅ 收到用户标注反馈: {label}, 增量学习完成")
+                    else:
+                        logger.warning(f"⚠️ 增量学习失败: {label}")
                 else:
-                    logger.warning(f"Failed to send CAN TX: 0x{CAN_TX_ID:08X}")
+                    logger.warning("⚠️ 诊断反馈无效或诊断模块未初始化")
                 
         except json.JSONDecodeError:
             logger.error(f"Invalid JSON received: {message}")
@@ -634,9 +743,11 @@ async def main():
     
     try:
         await server.start()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("\nShutting down...")
+    finally:
         server.stop()
+        logger.info("Server stopped")
 
 
 if __name__ == "__main__":

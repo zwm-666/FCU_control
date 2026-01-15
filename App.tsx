@@ -1,14 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { INITIAL_MACHINE_STATE, INITIAL_CONTROL_STATE, MachineState, ControlState, SystemState, FaultLevel, FAULT_CODES, ConnectionConfig } from './types';
+import { INITIAL_MACHINE_STATE, INITIAL_CONTROL_STATE, MachineState, ControlState, SystemState, FaultLevel, FAULT_CODES, ConnectionConfig, WorkMode, DiagnosisResult, DiagnosisLabel } from './types';
 import { generateControlPacket } from './services/canProtocol';
 import { wsService } from './services/websocketService';
-import { SchematicView } from './components/SchematicView';
-import { Gauge } from './components/Gauge';
-import { ControlPanel } from './components/ControlPanel';
+import { LeftDataPanel } from './components/LeftDataPanel';
+import { IndustrialSchematic } from './components/IndustrialSchematic';
+import { BottomControlPanel } from './components/BottomControlPanel';
+import { RightButtonPanel } from './components/RightButtonPanel';
 import { RealTimeChart } from './components/Charts';
 import { AlarmDrawer } from './components/AlarmDrawer';
-import { Activity, AlertTriangle, Wifi, WifiOff, LayoutDashboard, LineChart, Settings2, AlertCircle, Maximize2, Save, Square, FileText } from 'lucide-react';
+import { DiagnosisPanel } from './components/DiagnosisPanel';
+import { Wifi, WifiOff, Save, Square, AlertCircle } from 'lucide-react';
 
 // File System Access API Types
 interface FileSystemWritableFileStream extends WritableStream {
@@ -27,10 +29,9 @@ declare global {
     }
 }
 
-// Amount of history points to keep for charts
 const HISTORY_LENGTH = 100;
 
-type ViewType = 'monitor' | 'charts' | 'control';
+type ViewType = 'monitor' | 'charts' | 'control' | 'alarms';
 
 interface FaultLog {
     id: number;
@@ -56,19 +57,26 @@ function App() {
     const [history, setHistory] = useState<any[]>([]);
     // Fault History
     const [faultLogs, setFaultLogs] = useState<FaultLog[]>([]);
+    // Diagnosis Result
+    const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
 
     // Logging Refs
     const writableStreamRef = React.useRef<FileSystemWritableFileStream | null>(null);
     const bufferRef = React.useRef<string[]>([]);
     const [isLogging, setIsLogging] = useState(false);
 
+    // 当前时间
+    const [currentTime, setCurrentTime] = useState(new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
     // Logging Control
     const handleToggleLog = async () => {
-        // STOP LOGGING
         if (isLogging) {
             try {
                 if (writableStreamRef.current) {
-                    // Flush remaining data
                     if (bufferRef.current.length > 0) {
                         await writableStreamRef.current.write(bufferRef.current.join(''));
                         bufferRef.current = [];
@@ -84,7 +92,6 @@ function App() {
             return;
         }
 
-        // START LOGGING
         try {
             if (!('showSaveFilePicker' in window)) {
                 alert("当前浏览器不支持本地文件写入 API (File System Access API)。请使用 Chrome 或 Edge 桌面版。");
@@ -101,7 +108,6 @@ function App() {
             });
 
             const stream = await handle.createWritable();
-            // Write Header
             await stream.write("Timestamp,Stack_Voltage(V),Stack_Current(A),Stack_Temp(C),H2_Pressure(MPa),DCDC_Voltage(V),DCDC_Current(A),Fan1_Duty(%),Fault_Code\n");
 
             writableStreamRef.current = stream;
@@ -121,13 +127,13 @@ function App() {
             if (isLogging && writableStreamRef.current && bufferRef.current.length > 0) {
                 try {
                     const chunk = bufferRef.current.join('');
-                    bufferRef.current = []; // Clear buffer immediately
+                    bufferRef.current = [];
                     await writableStreamRef.current.write(chunk);
                 } catch (err) {
                     console.error("Write error:", err);
                 }
             }
-        }, 2000); // Flush every 2 seconds
+        }, 2000);
 
         return () => clearInterval(interval);
     }, [isLogging]);
@@ -135,24 +141,26 @@ function App() {
     // WebSocket Connection Management
     useEffect(() => {
         if (isConnected) {
-            // Connect to WebSocket server
             wsService.connect('ws://localhost:8765');
 
-            // Subscribe to machine state updates
             const unsubscribeState = wsService.onMachineState((state) => {
                 setMachine(state);
             });
 
-            // Subscribe to connection status
             const unsubscribeConnection = wsService.onConnection((connected) => {
                 if (!connected) {
                     setMachine(prev => ({ ...prev, connected: false }));
                 }
             });
 
+            const unsubscribeDiagnosis = wsService.onDiagnosis((result) => {
+                setDiagnosis(result);
+            });
+
             return () => {
                 unsubscribeState();
                 unsubscribeConnection();
+                unsubscribeDiagnosis();
             };
         } else {
             wsService.disconnect();
@@ -166,25 +174,37 @@ function App() {
     useEffect(() => {
         if (!isConnected) return;
 
-        // Charts
         setHistory(prev => {
-            const now = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            const now = Date.now();
+            // 最多保留10分钟数据(600秒)
+            const maxSeconds = 600;
+
+            // 先清理超过10分钟的旧数据
+            let filteredHistory = prev.filter(p => (now - p.timestamp) / 1000 <= maxSeconds);
+
+            // 计算相对于最早数据点的秒数
+            const baseTime = filteredHistory.length > 0 ? filteredHistory[0].timestamp : now;
+
             const newPoint = {
-                time: now,
+                time: Math.round((now - baseTime) / 1000), // 相对秒数
+                timestamp: now,
                 voltage: machine.power.stackVoltage,
                 current: machine.power.stackCurrent,
                 temp: machine.sensors.stackTemp
             };
-            const newHistory = [...prev, newPoint];
-            if (newHistory.length > HISTORY_LENGTH) newHistory.shift();
+
+            // 重新计算所有点的相对时间
+            const newHistory = [...filteredHistory, newPoint].map(p => ({
+                ...p,
+                time: Math.round((p.timestamp - baseTime) / 1000)
+            }));
+
             return newHistory;
         });
 
-        // Fault Logging
         if (machine.io.faultCode !== 0) {
             setFaultLogs(prev => {
                 const lastLog = prev[0];
-                // Avoid duplicate spamming of same fault per update tick
                 if (!lastLog || lastLog.code !== machine.io.faultCode || (Date.now() - new Date('1970/01/01 ' + lastLog.time).getTime() > 2000)) {
                     const newLog: FaultLog = {
                         id: Date.now(),
@@ -193,7 +213,7 @@ function App() {
                         code: machine.io.faultCode,
                         description: FAULT_CODES[machine.io.faultCode] || "未知故障"
                     };
-                    return [newLog, ...prev].slice(0, 50); // Keep last 50 logs
+                    return [newLog, ...prev].slice(0, 50);
                 }
                 return prev;
             });
@@ -205,9 +225,8 @@ function App() {
     useEffect(() => {
         if (!isLogging) return;
 
-        const now = new Date().toLocaleString('zh-CN', { hour12: false }); // YYYY/MM/DD HH:mm:ss
-        // Format: Time, V, I, T, P, DCDC_V, DCDC_I, Fan, Code
-        const line = `${now},${machine.power.stackVoltage.toFixed(1)},${machine.power.stackCurrent.toFixed(1)},${machine.sensors.stackTemp.toFixed(1)},${machine.sensors.h2InletPressure.toFixed(2)},${machine.power.dcfVoltage.toFixed(1)},${machine.power.dcfCurrent.toFixed(1)},${machine.io.fan1Duty},${machine.io.faultCode}\n`;
+        const now = new Date().toLocaleString('zh-CN', { hour12: false });
+        const line = `${now},${machine.power.stackVoltage.toFixed(1)},${machine.power.stackCurrent.toFixed(1)},${machine.sensors.stackTemp.toFixed(1)},${machine.sensors.h2InletPressure.toFixed(2)},${machine.power.dcfOutVoltage.toFixed(1)},${machine.power.dcfOutCurrent.toFixed(1)},${machine.io.fan1Duty},${machine.io.faultCode}\n`;
 
         bufferRef.current.push(line);
     }, [machine, isLogging]);
@@ -216,33 +235,19 @@ function App() {
     const handleControlUpdate = (updates: Partial<ControlState>) => {
         const newControl = { ...control, ...updates };
 
-        // Only send if values actually changed
         const hasChanged = Object.keys(updates).some(key =>
             control[key as keyof ControlState] !== updates[key as keyof ControlState]
         );
 
         if (!hasChanged) {
-            return; // No change, don't send
+            return;
         }
 
         setControl(newControl);
-
-        // Send control command via WebSocket to backend
         wsService.sendControl(newControl);
 
-        // Log for debugging
         const packet = generateControlPacket(newControl);
         console.log("TX CAN ID:", packet.id.toString(16), "DATA:", packet.data);
-    };
-
-    const getStatusColor = (state: SystemState) => {
-        switch (state) {
-            case SystemState.OFF: return "text-slate-500";
-            case SystemState.START: return "text-blue-400";
-            case SystemState.RUN: return "text-emerald-400";
-            case SystemState.FAULT: return "text-red-500";
-            default: return "text-slate-500";
-        }
     };
 
     const getStatusText = (state: SystemState) => {
@@ -257,12 +262,12 @@ function App() {
 
     const getLevelColor = (level: FaultLevel) => {
         switch (level) {
-            case FaultLevel.WARNING: return "text-yellow-400";
-            case FaultLevel.SEVERE: return "text-orange-500";
-            case FaultLevel.EMERGENCY: return "text-red-500";
-            default: return "text-slate-400";
+            case FaultLevel.WARNING: return "text-amber-400";
+            case FaultLevel.SEVERE: return "text-orange-400";
+            case FaultLevel.EMERGENCY: return "text-red-400";
+            default: return "text-slate-500";
         }
-    }
+    };
 
     const getLevelText = (level: FaultLevel) => {
         switch (level) {
@@ -271,218 +276,282 @@ function App() {
             case FaultLevel.EMERGENCY: return "紧急";
             default: return "提示";
         }
-    }
+    };
+
+    // 诊断反馈处理
+    const handleDiagnosisFeedback = (label: DiagnosisLabel) => {
+        wsService.sendDiagnosisFeedback(label);
+        console.log("发送诊断反馈:", label);
+    };
 
     return (
-        <div className="min-h-screen bg-slate-200 text-slate-800 font-sans selection:bg-cyan-500/30 flex flex-col">
+        <div className="h-screen flex flex-col bg-[#050A14] text-slate-100 font-sans overflow-hidden">
 
-            {/* HEADER */}
-            <header className="bg-slate-950 border-b border-slate-800 px-6 py-3 flex justify-between items-center shadow-sm z-50 sticky top-0">
+            {/* 顶部标题栏 - 深空幽蓝主题 */}
+            <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 px-4 py-2.5 flex justify-between items-center">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/20">
-                        <Activity className="text-white w-6 h-6" />
+                    <div className="flex items-center gap-2">
+                        <span className="text-cyan-400 text-xl">◈</span>
+                        <h1 className="text-lg font-bold text-slate-100">氢燃料电池监控系统</h1>
                     </div>
-                    <div className="hidden md:block">
-                        <h1 className="text-lg font-bold tracking-tight text-white leading-tight">氢燃料电池监控系统</h1>
-                    </div>
+                    <span className={`px-3 py-1 rounded text-xs font-bold border ${machine.status.state === SystemState.RUN ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50' :
+                        machine.status.state === SystemState.FAULT ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse' :
+                            machine.status.state === SystemState.START ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' :
+                                'bg-slate-700/50 text-slate-400 border-slate-600'
+                        }`}>
+                        {getStatusText(machine.status.state)}
+                    </span>
+                    {machine.status.state === SystemState.FAULT && (
+                        <span className="bg-red-500/20 text-red-400 border border-red-500/50 text-xs px-2 py-1 rounded animate-pulse">
+                            {FAULT_CODES[machine.io.faultCode] || `故障码: ${machine.io.faultCode}`}
+                        </span>
+                    )}
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="flex bg-slate-200 p-1 rounded-lg border border-slate-300">
-                    {[
-                        { id: 'monitor', label: '实时监控', icon: LayoutDashboard },
-                        { id: 'charts', label: '数据曲线', icon: LineChart },
-                        { id: 'control', label: '系统控制', icon: Settings2 },
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveView(tab.id as ViewType)}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeView === tab.id
-                                ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-300'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
-                                }`}
-                        >
-                            <tab.icon className="w-4 h-4" />
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="flex items-center gap-6">
-                    <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">系统状态</span>
-                        <div className={`text-lg font-black tracking-tighter ${getStatusColor(machine.status.state)} flex items-center gap-2`}>
-                            {/* PROMINENT FAULT DISPLAY IN HEADER */}
-                            {machine.status.state === SystemState.FAULT ? (
-                                <div className="flex items-center gap-2">
-                                    <AlertTriangle className="w-5 h-5 animate-pulse text-red-600" />
-                                    <span className="text-red-600">{getStatusText(machine.status.state)}</span>
-                                    <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-1 animate-pulse shadow-red-500/50 shadow-sm whitespace-nowrap">
-                                        {FAULT_CODES[machine.io.faultCode] || `代码: ${machine.io.faultCode}`}
-                                    </span>
-                                </div>
-                            ) : (
-                                getStatusText(machine.status.state)
-                            )}
-                        </div>
-                    </div>
-
-
-
+                <div className="flex items-center gap-4">
+                    {/* 数据记录按钮 */}
                     <button
                         onClick={handleToggleLog}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isLogging
-                            ? 'bg-red-500/10 border-red-500/50 text-red-500 animate-pulse'
-                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
-                        title={isLogging ? "停止记录" : "开始记录数据"}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-bold transition-all ${isLogging
+                            ? 'bg-red-500/20 border-red-500/50 text-red-400 animate-pulse'
+                            : 'bg-slate-800/50 border-slate-600 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'}`}
                     >
-                        {isLogging ? <Square className="w-3.5 h-3.5 fill-current" /> : <Save className="w-3.5 h-3.5" />}
-                        <span className="text-xs font-bold">{isLogging ? 'REC' : '记录'}</span>
+                        {isLogging ? <Square className="w-3 h-3 fill-current" /> : <Save className="w-3 h-3" />}
+                        {isLogging ? '● 记录中' : '数据记录'}
                     </button>
 
+                    {/* 连接按钮 */}
                     <button
                         onClick={() => setIsConnected(!isConnected)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isConnected
-                            ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
-                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-bold transition-all ${isConnected
+                            ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
+                            : 'bg-slate-800/50 border-slate-600 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'}`}
                     >
-                        {isConnected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-                        <span className="text-xs font-bold">{isConnected ? '在线' : '离线'}</span>
+                        {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                        {isConnected ? '● 已连接' : '未连接'}
                     </button>
+
+                    {/* 日期时间 */}
+                    <div className="text-slate-400 text-sm font-mono bg-slate-800/50 px-3 py-1 rounded border border-slate-700/50">
+                        <span className="text-cyan-400">{currentTime.toLocaleDateString('zh-CN')}</span>
+                        <span className="mx-2 text-slate-600">|</span>
+                        <span className="text-slate-300">{currentTime.toLocaleTimeString('zh-CN', { hour12: false })}</span>
+                    </div>
                 </div>
-            </header >
+            </header>
 
-            {/* CONTENT AREA */}
-            < main className="flex-1 overflow-auto p-6 relative" >
+            {/* 主内容区 */}
+            <main className="flex-1 flex overflow-hidden">
+                {/* 左侧数据面板 */}
+                <LeftDataPanel data={machine} />
 
-                {/* VIEW: MONITOR */}
-                {
-                    activeView === 'monitor' && (
-                        <div className="space-y-4 max-w-6xl mx-auto animate-in fade-in zoom-in-95 duration-300">
-                            {/* 2. Schematic View (Full Width) */}
-                            <div className="w-full">
-                                <SchematicView data={machine} />
+                {/* 中央区域 */}
+                <div className="flex-1 flex flex-col">
+                    {activeView === 'monitor' && (
+                        <IndustrialSchematic data={machine} />
+                    )}
+
+                    {activeView === 'charts' && (
+                        <div className="flex-1 p-2 overflow-auto bg-slate-950/40 grid grid-cols-1 gap-2">
+                            <RealTimeChart data={history} title="电堆电压曲线" dataKey="voltage" unit="V" color="#00F0FF" />
+                            <RealTimeChart data={history} title="电堆电流曲线" dataKey="current" unit="A" color="#3B82F6" />
+                            <RealTimeChart data={history} title="电堆温度曲线" dataKey="temp" unit="°C" color="#F59E0B" />
+                        </div>
+                    )}
+
+                    {activeView === 'alarms' && (
+                        <div className="flex-1 bg-slate-950/60 backdrop-blur border border-slate-700/50 flex flex-col overflow-hidden rounded-lg m-2">
+                            <div className="bg-gradient-to-r from-red-900/50 to-red-800/30 border-b border-red-700/50 text-slate-100 text-sm font-bold px-4 py-2 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-red-400" />
+                                报警履历
+                                <span className="ml-auto bg-red-500/20 text-red-400 border border-red-500/50 text-xs px-2 py-0.5 rounded">
+                                    {faultLogs.length} 条
+                                </span>
+                            </div>
+                            <div className="flex-1 overflow-auto">
+                                <table className="w-full text-xs">
+                                    <thead className="bg-slate-900/80 sticky top-0">
+                                        <tr className="text-slate-400">
+                                            <th className="px-3 py-2 text-left border-b border-slate-700/50">时间</th>
+                                            <th className="px-3 py-2 text-left border-b border-slate-700/50">等级</th>
+                                            <th className="px-3 py-2 text-left border-b border-slate-700/50">代码</th>
+                                            <th className="px-3 py-2 text-left border-b border-slate-700/50">说明</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {faultLogs.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={4} className="px-4 py-8 text-center text-slate-600">
+                                                    系统正常，无报警记录
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            faultLogs.map(log => (
+                                                <tr key={log.id} className="hover:bg-slate-800/30 border-b border-slate-800/50">
+                                                    <td className="px-3 py-2 font-mono text-slate-400">{log.time}</td>
+                                                    <td className={`px-3 py-2 font-bold ${getLevelColor(log.level)}`}>{getLevelText(log.level)}</td>
+                                                    <td className="px-3 py-2 font-mono text-cyan-400">0x{log.code.toString(16).toUpperCase().padStart(2, '0')}</td>
+                                                    <td className="px-3 py-2 text-slate-300">{log.description}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeView === 'control' && (
+                        <div className="flex-1 bg-slate-950/60 backdrop-blur border border-slate-700/50 flex flex-col overflow-hidden rounded-lg m-2 p-4">
+                            <div className="bg-gradient-to-r from-slate-900 to-slate-800 border-b border-slate-700/50 text-slate-100 text-sm font-bold px-4 py-2 flex items-center gap-2 -m-4 mb-4">
+                                <span className="text-cyan-400">⚙</span>
+                                参数设定
+                                {control.mode === WorkMode.AUTO && (
+                                    <span className="ml-auto text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
+                                        自动模式下参数不可调
+                                    </span>
+                                )}
                             </div>
 
-                            {/* 1. Compact Gauges Row */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <Gauge size="small" label="电堆电压" value={machine.power.stackVoltage} unit="V" max={60} color="text-yellow-600" />
-                                <Gauge size="small" label="电堆电流" value={machine.power.stackCurrent} unit="A" max={50} color="text-blue-600" />
-                                <Gauge size="small" label="电堆温度" value={machine.sensors.stackTemp} unit="°C" min={-20} max={100} color="text-orange-600" />
-                                <Gauge size="small" label="氢气入口压力" value={machine.sensors.h2InletPressure} unit="MPa" max={2.5} color="text-cyan-600" />
-                            </div>
-
-                            {/* 3. Additional Mini Data (Cards) */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
-                                    <span className="text-xs text-slate-500 font-medium">DCF 输出功率</span>
-                                    <span className="font-mono text-sm text-slate-700 font-bold">{machine.power.dcfPower} W</span>
-                                </div>
-                                <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
-                                    <span className="text-xs text-slate-500 font-medium">DCF 温度</span>
-                                    <span className="font-mono text-sm text-slate-700 font-bold">{machine.io.dcfMosTemp} °C</span>
-                                </div>
-                                <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
-                                    <span className="text-xs text-slate-500 font-medium">风扇1 占空比</span>
-                                    <span className="font-mono text-sm text-slate-700 font-bold">{machine.io.fan1Duty} %</span>
-                                </div>
-                                <div className="bg-slate-50 rounded border border-slate-300 p-2 flex justify-between items-center shadow-sm">
-                                    <span className="text-xs text-slate-500 font-medium">氢气浓度</span>
-                                    <span className="font-mono text-sm text-slate-700 font-bold">{machine.sensors.h2Concentration} %</span>
-                                </div>
-                            </div>
-
-                            {/* 4. Fault Table (Bottom, Full Width) */}
-                            <div className="bg-slate-50 rounded-xl border border-slate-300 flex flex-col overflow-hidden h-[250px] shadow-sm">
-                                <div className="bg-slate-100 p-3 border-b border-slate-300 flex items-center justify-between">
-                                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4 text-red-600" /> 报警信息
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-auto">
+                                {/* DCF参数设定 */}
+                                <div className={`bg-slate-900/50 border border-slate-700/50 rounded-lg p-4 ${control.mode === WorkMode.AUTO ? 'opacity-50' : ''}`}>
+                                    <h3 className="text-slate-100 font-bold text-sm mb-4 flex items-center gap-2">
+                                        <span className="text-amber-400">⚡</span> DCF输出设定
                                     </h3>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] text-slate-500 bg-white border border-slate-300 px-2 py-0.5 rounded-full shadow-sm">{faultLogs.length} 条记录</span>
-                                        <button
-                                            onClick={() => setIsAlarmDrawerOpen(true)}
-                                            className="p-1 hover:bg-slate-200 rounded text-slate-500 transition-colors"
-                                            title="展开查看全部"
-                                        >
-                                            <Maximize2 className="w-3.5 h-3.5" />
-                                        </button>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                                <span>目标电压</span>
+                                                <span className="text-cyan-300 font-mono font-bold">{control.dcfTargetVoltage.toFixed(1)} V</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={0} max={60} step={0.5}
+                                                value={control.dcfTargetVoltage}
+                                                onChange={(e) => handleControlUpdate({ dcfTargetVoltage: parseFloat(e.target.value) })}
+                                                disabled={control.mode === WorkMode.AUTO}
+                                                className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-cyan-500 ${control.mode === WorkMode.AUTO ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                            />
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                                <span>目标电流</span>
+                                                <span className="text-cyan-300 font-mono font-bold">{control.dcfTargetCurrent.toFixed(1)} A</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={0} max={100} step={1}
+                                                value={control.dcfTargetCurrent}
+                                                onChange={(e) => handleControlUpdate({ dcfTargetCurrent: parseFloat(e.target.value) })}
+                                                disabled={control.mode === WorkMode.AUTO}
+                                                className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-cyan-500 ${control.mode === WorkMode.AUTO ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex-1 overflow-auto p-0 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="text-slate-500 bg-slate-100 sticky top-0 font-medium z-10 border-b border-slate-300">
-                                            <tr>
-                                                <th className="px-3 py-2 bg-slate-50">时间</th>
-                                                <th className="px-3 py-2 bg-slate-50">等级</th>
-                                                <th className="px-3 py-2 bg-slate-50">代码</th>
-                                                <th className="px-3 py-2 bg-slate-50">说明</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {faultLogs.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400 italic">
-                                                        系统正常，无报警记录
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                faultLogs.map(log => (
-                                                    <tr key={log.id} className="hover:bg-white transition-colors">
-                                                        <td className="px-3 py-2 font-mono text-slate-600">{log.time}</td>
-                                                        <td className={`px-3 py-2 font-bold ${getLevelColor(log.level)}`}>{getLevelText(log.level)}</td>
-                                                        <td className="px-3 py-2 font-mono text-slate-500">0x{log.code.toString(16).toUpperCase().padStart(2, '0')}</td>
-                                                        <td className="px-3 py-2 text-slate-700 w-1/2">{log.description}</td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
+
+                                {/* 风扇设定 */}
+                                <div className={`bg-slate-900/50 border border-slate-700/50 rounded-lg p-4 ${control.mode === WorkMode.AUTO ? 'opacity-50' : ''}`}>
+                                    <h3 className="text-slate-100 font-bold text-sm mb-4 flex items-center gap-2">
+                                        <span className="text-blue-400">⟳</span> 风扇设定
+                                    </h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                                <span>风扇1转速</span>
+                                                <span className="text-cyan-300 font-mono font-bold">{control.fan1TargetSpeed} %</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={0} max={100} step={5}
+                                                value={control.fan1TargetSpeed}
+                                                onChange={(e) => handleControlUpdate({ fan1TargetSpeed: parseInt(e.target.value) })}
+                                                disabled={control.mode === WorkMode.AUTO}
+                                                className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-blue-500 ${control.mode === WorkMode.AUTO ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* CAN通信配置 */}
+                                <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-4 md:col-span-2">
+                                    <h3 className="text-slate-100 font-bold text-sm mb-4 flex items-center gap-2">
+                                        <span className="text-purple-400">📡</span> 通信配置
+                                    </h3>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="text-xs text-slate-400 block mb-1">接口类型</label>
+                                            <select
+                                                value={connectionConfig.interfaceType}
+                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, interfaceType: e.target.value }))}
+                                                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
+                                            >
+                                                <option value="virtual">Virtual</option>
+                                                <option value="socketcan">SocketCAN</option>
+                                                <option value="pcan">PCAN</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-400 block mb-1">通道</label>
+                                            <input
+                                                type="text"
+                                                value={connectionConfig.channel}
+                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, channel: e.target.value }))}
+                                                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-400 block mb-1">波特率</label>
+                                            <select
+                                                value={connectionConfig.bitrate}
+                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, bitrate: e.target.value }))}
+                                                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
+                                            >
+                                                <option value="125000">125 kbps</option>
+                                                <option value="250000">250 kbps</option>
+                                                <option value="500000">500 kbps</option>
+                                                <option value="1000000">1 Mbps</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    )
-                }
+                    )}
+                </div>
 
-                {/* VIEW: CHARTS */}
-                {
-                    activeView === 'charts' && (
-                        <div className="grid grid-cols-1 gap-4 h-full max-w-6xl mx-auto animate-in slide-in-from-right-4 duration-300">
-                            <RealTimeChart data={history} title="电堆电压曲线" dataKey="voltage" unit="V" color="#ca8a04" />
-                            <RealTimeChart data={history} title="电堆电流曲线" dataKey="current" unit="A" color="#0284c7" />
-                            <RealTimeChart data={history} title="电堆温度曲线" dataKey="temp" unit="°C" color="#ea580c" />
-                        </div>
-                    )
-                }
+                {/* 右侧区域 */}
+                <div className="w-64 flex flex-col gap-2 p-2">
+                    {/* 诊断面板 */}
+                    <DiagnosisPanel
+                        diagnosis={diagnosis}
+                        onFeedback={handleDiagnosisFeedback}
+                    />
+                    {/* 导航按钮面板 */}
+                    <RightButtonPanel activeView={activeView} onViewChange={(v) => setActiveView(v as ViewType)} />
+                </div>
+            </main>
 
-                {/* VIEW: CONTROL */}
-                {
-                    activeView === 'control' && (
-                        <div className="max-w-5xl mx-auto animate-in slide-in-from-right-4 duration-300">
-                            <ControlPanel
-                                control={control}
-                                onUpdate={handleControlUpdate}
-                                connectionConfig={connectionConfig}
-                                onConfigUpdate={(update) => setConnectionConfig(prev => ({ ...prev, ...update }))}
-                            />
-                        </div>
-                    )
-                }
+            {/* 底部控制面板 */}
+            <BottomControlPanel control={control} onUpdate={handleControlUpdate} />
 
-            </main >
-
-            {/* FOOTER */}
-            < div className="bg-slate-50 border-t border-slate-200 py-1 px-4 text-center text-[10px] text-slate-400 font-mono" >
-                CAN Rx: 0x18FF01F0, 0x18FF02F0, 0x18FF03F0, 0x18FF04F0 | Tx: 0x18FF10A0 | Bitrate: {connectionConfig.bitrate} bps
-            </div >
+            {/* 底部状态栏 */}
+            <footer className="bg-slate-900/80 border-t border-slate-700/50 px-4 py-1.5 text-[10px] text-slate-500 font-mono flex justify-between">
+                <span>
+                    <span className="text-cyan-500">CAN Rx:</span> 0x18FF01F0, 0x18FF02F0, 0x18FF03F0, 0x18FF04F0
+                    <span className="mx-2 text-slate-700">|</span>
+                    <span className="text-amber-500">Tx:</span> 0x18FF10A0
+                </span>
+                <span>Bitrate: <span className="text-slate-400">{connectionConfig.bitrate}</span> bps</span>
+            </footer>
 
             <AlarmDrawer
                 isOpen={isAlarmDrawerOpen}
                 onClose={() => setIsAlarmDrawerOpen(false)}
                 logs={faultLogs}
             />
-
-        </div >
+        </div>
     );
 }
 
