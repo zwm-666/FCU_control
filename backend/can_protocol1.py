@@ -243,12 +243,14 @@ def parse_msg4_io(data: bytes, state: MachineState) -> None:
     fault_code = struct.unpack('>H', data[4:6])[0]
     
     # IO Flags Mapping
-    state.io["h2HighValve"] = bool(flags & 0x01)   # 进气阀 -> 氢气高压阀 (近似)
-    state.io["h2PurgeValve"] = bool(flags & 0x02)
-    # 比例阀 -> 无直接映射
-    state.io["ptcHeater"] = bool(flags & 0x04)     # 加热器 -> PTC 加热器
-    state.io["mainFan"] = bool(flags & 0x08)       # 风扇1 -> 主风扇
-    state.io["auxFan"] = bool(flags & 0x10)        # 风扇2 -> 辅助风扇
+    state.io["h2HighValve"] = bool(flags & 0x01)   # Bit 0: 进气阀
+    state.io["h2PurgeValve"] = bool(flags & 0x02)  # Bit 1: 排气阀
+    # Bit 2 (0x04): 比例阀? (VirtualDriver 跳过了 Bit 2, 将 Heater 放在 Bit 3)
+    
+    state.io["ptcHeater"] = bool(flags & 0x08)     # Bit 3: 加热器 (修正: 原0x04)
+    state.io["mainFan"] = bool(flags & 0x10)       # Bit 4: 主风扇 (修正: 原0x08)
+    state.io["auxFan"] = bool(flags & 0x20)        # Bit 5: 辅助风扇 (修正: 原0x10)
+    
     state.io["fan1Duty"] = fan1_duty               # 风扇1占空比
     
     state.temps["dcdcTemp"] = round(dcf_mos_temp, 1)

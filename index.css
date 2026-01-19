@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #020617; /* Deep Slate Base */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow: hidden; /* App handles scrolling */
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.5); 
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(30, 41, 59, 0.5); 
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(71, 85, 105, 0.8); 
+}
+
+/* ========== 规范一：管道流动动画 ========== */
+@keyframes pipe-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -50;
+  }
+}
+
+.pipe-flow-animation {
+  animation: pipe-flow 2s linear infinite;
+}
+
+/* ========== 规范三：科技等宽字体 ========== */
+.tech-font {
+  font-family: 'JetBrains Mono', 'Roboto Mono', 'Consolas', monospace;
+}
+
+/* 数值文字发光 - 极小范围阴影 */
+.tech-glow-text {
+  text-shadow: 0 0 2px rgba(0, 229, 255, 0.8);
+}
+
+.tech-glow-text-amber {
+  text-shadow: 0 0 2px rgba(255, 184, 0, 0.8);
+}
+
