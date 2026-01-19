@@ -212,9 +212,9 @@ function App() {
             const newPoint = {
                 time: Math.round((now - baseTime) / 1000), // 相对秒数
                 timestamp: now,
-                voltage: machine.power.stackVoltage,
-                current: machine.power.stackCurrent,
-                temp: machine.sensors.stackTemp
+                voltage: Number(machine.power.stackVoltage) || 0,
+                current: Number(machine.power.stackCurrent) || 0,
+                temp: Number(machine.sensors.stackTemp) || 0
             };
 
             // 重新计算所有点的相对时间
@@ -275,6 +275,16 @@ function App() {
     };
 
     const handleCommand = (cmd: ControlCommand) => {
+        let confirmText = "";
+        switch (cmd) {
+            case ControlCommand.START: confirmText = "确定要启动系统吗？"; break;
+            case ControlCommand.EMERGENCY_STOP: confirmText = "确定要紧急停止吗？WARNING: System will stop immediately."; break;
+            case ControlCommand.RESET: confirmText = "确定要复位故障吗？"; break;
+            case ControlCommand.SHUTDOWN: confirmText = "确定要停止关机吗？"; break;
+        }
+
+        if (confirmText && !window.confirm(confirmText)) return;
+
         handleControlUpdate({ command: cmd });
         setTimeout(() => handleControlUpdate({ command: ControlCommand.NONE }), 200);
     };
@@ -400,14 +410,16 @@ function App() {
             </header>
 
             {/* ================= MAIN GRID ================= */}
+            {/* ================= MAIN GRID ================= */}
             {/* Added min-h-0 to ensure flex child can scroll internally */}
-            <main className="flex-1 min-h-0 p-6 grid grid-cols-12 gap-6 relative z-0">
+            <main className="flex-1 min-h-0 p-4 grid grid-cols-12 grid-rows-[1fr_auto] gap-2 relative z-0">
+
 
                 {/* LEFT: VITAL STATS (3 cols) */}
                 <div className="col-span-3 flex flex-col gap-4 h-full min-h-0">
-                    <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-1">
-                        <GlassPanel title="电堆核心指标" icon={<Activity className="w-3.5 h-3.5" />} className="shrink-0">
-                            <div className="space-y-3">
+                    <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+                        <GlassPanel title="电堆核心指标" icon={<Activity className="w-3.5 h-3.5" />} className="shrink-0" contentClassName="p-3">
+                            <div className="space-y-2">
                                 <MetricCard
                                     label="电堆电压"
                                     value={machine.power.stackVoltage.toFixed(1)}
@@ -434,8 +446,144 @@ function App() {
                             </div>
                         </GlassPanel>
 
-                        <GlassPanel title="系统压力与DCF" icon={<Gauge className="w-3.5 h-3.5" />} className="shrink-0">
-                            <div className="grid grid-cols-1 gap-4">
+                        {/* Diagnosis Panel (Moved from Right) */}
+                        <GlassPanel title="智能故障诊断" icon={<RotateCcw className="w-3.5 h-3.5" />} className="shrink-0" contentClassName="p-3">
+                            <DiagnosisPanel
+                                diagnosis={diagnosis}
+                                onFeedback={handleDiagnosisFeedback}
+                                lastFaultCode={machine.io.faultCode}
+                            />
+                        </GlassPanel>
+                    </div>
+                </div>
+
+                {/* CENTER: DYNAMIC VIEW (6 cols) */}
+                <div className="col-span-6 relative flex flex-col h-full min-h-0 shadow-2xl rounded-2xl bg-slate-900/20 border border-white/5 backdrop-blur-sm overflow-hidden group">
+
+                    {/* Content Area */}
+                    <div className="flex-1 relative overflow-auto custom-scrollbar">
+                        {activeView === 'monitor' && (
+                            <div className="w-full h-full p-2 flex flex-col items-center bg-transparent pt-4 overflow-hidden">
+                                {/* Schematic wrapper: Moved UP (pt-4, justify-start) and reduced padding */}
+                                <div className="w-full flex-1 flex justify-center items-start overflow-hidden">
+                                    <div className="scale-100 origin-top w-full h-full">
+                                        <IndustrialSchematic data={machine} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeView === 'charts' && (
+                            <div className="p-6 h-full flex flex-col gap-4 pt-16">
+                                <h3 className="text-lg font-bold text-slate-200 mb-2">系统实时趋势分析</h3>
+                                <RealTimeChart data={history} title="电堆电压趋势" dataKey="voltage" unit="V" color="#22D3EE" />
+                                <RealTimeChart data={history} title="电堆电流趋势" dataKey="current" unit="A" color="#3B82F6" />
+                                <RealTimeChart data={history} title="电堆温度趋势" dataKey="temp" unit="°C" color="#F59E0B" />
+                            </div>
+                        )}
+
+                        {/* Control View: Moved here if user clicks tab (but main controls are now bottom) */}
+                        {activeView === 'control' && (
+                            <div className="p-8 h-full pt-16">
+                                {/* Keep config here */}
+                                <h3 className="text-xl font-bold text-slate-100 mb-6 flex items-center gap-3">
+                                    <Settings className="w-6 h-6 text-cyan-400" />
+                                    系统配置中心
+                                </h3>
+                                {/* CAN Config Code... same as before */}
+                                <div className="mb-8 p-6 rounded-xl border border-white/10 bg-white/5">
+                                    <h4 className="text-sm font-bold text-slate-300 uppercase mb-4">通信接口配置</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs text-slate-400 block mb-1">接口类型</label>
+                                            <select
+                                                value={connectionConfig.interfaceType}
+                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, interfaceType: e.target.value }))}
+                                                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                                            >
+                                                <option value="virtual">Virtual (虚拟)</option>
+                                                <option value="socketcan">SocketCAN</option>
+                                                <option value="pcan">PCAN</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-400 block mb-1">通道 (Channel)</label>
+                                            <input
+                                                type="text"
+                                                value={connectionConfig.channel}
+                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, channel: e.target.value }))}
+                                                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-400 block mb-1">波特率 (Bitrate)</label>
+                                            <select
+                                                value={connectionConfig.bitrate}
+                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, bitrate: e.target.value }))}
+                                                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+                                            >
+                                                <option value="125000">125 kbps</option>
+                                                <option value="250000">250 kbps</option>
+                                                <option value="500000">500 kbps</option>
+                                                <option value="1000000">1 Mbps</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeView === 'alarms' && (
+                            <div className="h-full overflow-hidden flex flex-col bg-slate-900/50 pt-14">
+                                {/* Alarm Table Code... same as before */}
+                                <div className="p-4 border-b border-white/10 bg-rose-900/20">
+                                    <h3 className="text-lg font-bold text-rose-400 flex items-center gap-2">
+                                        <AlertTriangle className="w-5 h-5" />
+                                        即时报警列表 ({faultLogs.length})
+                                    </h3>
+                                </div>
+                                <div className="flex-1 overflow-auto">
+                                    {/* Table Body */}
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs text-slate-400 uppercase bg-black/20 sticky top-0 backdrop-blur">
+                                            <tr>
+                                                <th className="px-6 py-3">时间</th>
+                                                <th className="px-6 py-3">等级</th>
+                                                <th className="px-6 py-3">代码</th>
+                                                <th className="px-6 py-3">详细描述</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {faultLogs.map((log) => (
+                                                <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                                                    <td className="px-6 py-4 font-mono text-slate-300">{log.time}</td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold border ${log.level === FaultLevel.EMERGENCY ? 'bg-rose-500/20 text-rose-400 border-rose-500/50' :
+                                                            log.level === FaultLevel.WARNING ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' :
+                                                                'bg-slate-700 text-slate-300 border-slate-600'
+                                                            }`}>
+                                                            {log.level === FaultLevel.WARNING ? '警告' :
+                                                                log.level === FaultLevel.SEVERE ? '严重' :
+                                                                    log.level === FaultLevel.EMERGENCY ? '紧急' : '提示'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 font-mono text-cyan-500">0x{log.code.toString(16).toUpperCase()}</td>
+                                                    <td className="px-6 py-4 text-slate-200">{log.description}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* RIGHT: SYSTEM PARAMS 2 (Moved from Left) */}
+                <div className="col-span-3 flex flex-col gap-4 h-full min-h-0">
+                    <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+                        <GlassPanel title="系统压力与DCF" icon={<Gauge className="w-3.5 h-3.5" />} className="shrink-0" contentClassName="p-3">
+                            <div className="grid grid-cols-1 gap-3">
                                 <MetricCard
                                     label="氢瓶压力"
                                     value={machine.sensors.h2CylinderPressure.toFixed(2)}
@@ -487,219 +635,45 @@ function App() {
                     </div>
                 </div>
 
-                {/* CENTER: DYNAMIC VIEW (6 cols) */}
-                <div className="col-span-6 relative flex flex-col h-full min-h-0 shadow-2xl rounded-2xl bg-slate-900/20 border border-white/5 backdrop-blur-sm overflow-hidden group">
-
-                    {/* View Tabs Overlay Removed (Moved to Header) */}
-
-                    {/* Content Area */}
-                    <div className="flex-1 relative overflow-auto custom-scrollbar">
-                        {activeView === 'monitor' && (
-                            <div className="w-full h-full p-4 flex items-center justify-center bg-transparent pt-12">
-                                {/* Schematic wrapper to fit nicely */}
-                                <div className="scale-95 origin-center w-full h-full flex justify-center items-center">
-                                    <IndustrialSchematic data={machine} />
-                                </div>
-                            </div>
-                        )}
-
-                        {activeView === 'charts' && (
-                            <div className="p-6 h-full flex flex-col gap-4 pt-16">
-                                <h3 className="text-lg font-bold text-slate-200 mb-2">系统实时趋势分析</h3>
-                                <RealTimeChart data={history} title="电堆电压趋势" dataKey="voltage" unit="V" color="#22D3EE" />
-                                <RealTimeChart data={history} title="电堆电流趋势" dataKey="current" unit="A" color="#3B82F6" />
-                                <RealTimeChart data={history} title="电堆温度趋势" dataKey="temp" unit="°C" color="#F59E0B" />
-                            </div>
-                        )}
-
-                        {activeView === 'control' && (
-                            <div className="p-8 h-full pt-16">
-                                <h3 className="text-xl font-bold text-slate-100 mb-6 flex items-center gap-3">
-                                    <Settings className="w-6 h-6 text-cyan-400" />
-                                    系统配置中心
-                                </h3>
-
-                                {/* CAN Config */}
-                                <div className="mb-8 p-6 rounded-xl border border-white/10 bg-white/5">
-                                    <h4 className="text-sm font-bold text-slate-300 uppercase mb-4">通信接口配置</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs text-slate-400 block mb-1">接口类型</label>
-                                            <select
-                                                value={connectionConfig.interfaceType}
-                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, interfaceType: e.target.value }))}
-                                                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                                            >
-                                                <option value="virtual">Virtual (虚拟)</option>
-                                                <option value="socketcan">SocketCAN</option>
-                                                <option value="pcan">PCAN</option>
-                                            </select>
+                {/* BOTTOM ROW: CONTROLS (Compact Fixed Height) - ONLY ON MONITOR VIEW */}
+                {activeView === 'monitor' && (
+                    <div className="col-span-12 h-auto flex-none">
+                        <GlassPanel
+                            title="系统控制台"
+                            icon={<Settings className="w-4 h-4" />}
+                            className="h-full bg-slate-900/60 backdrop-blur"
+                            action={
+                                <div className="flex items-center gap-4">
+                                    {control.mode === WorkMode.AUTO && (
+                                        <div className="hidden sm:flex px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded text-xs items-center gap-2 font-bold animate-pulse">
+                                            <AlertTriangle className="w-3.5 h-3.5" />
+                                            自动接管中 SYSTEM AUTO
                                         </div>
-                                        <div>
-                                            <label className="text-xs text-slate-400 block mb-1">通道 (Channel)</label>
-                                            <input
-                                                type="text"
-                                                value={connectionConfig.channel}
-                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, channel: e.target.value }))}
-                                                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-slate-400 block mb-1">波特率 (Bitrate)</label>
-                                            <select
-                                                value={connectionConfig.bitrate}
-                                                onChange={(e) => setConnectionConfig(prev => ({ ...prev, bitrate: e.target.value }))}
-                                                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                                            >
-                                                <option value="125000">125 kbps</option>
-                                                <option value="250000">250 kbps</option>
-                                                <option value="500000">500 kbps</option>
-                                                <option value="1000000">1 Mbps</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeView === 'alarms' && (
-                            <div className="h-full overflow-hidden flex flex-col bg-slate-900/50 pt-14">
-                                <div className="p-4 border-b border-white/10 bg-rose-900/20">
-                                    <h3 className="text-lg font-bold text-rose-400 flex items-center gap-2">
-                                        <AlertTriangle className="w-5 h-5" />
-                                        即时报警列表 ({faultLogs.length})
-                                    </h3>
-                                </div>
-                                <div className="flex-1 overflow-auto">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="text-xs text-slate-400 uppercase bg-black/20 sticky top-0 backdrop-blur">
-                                            <tr>
-                                                <th className="px-6 py-3">时间</th>
-                                                <th className="px-6 py-3">等级</th>
-                                                <th className="px-6 py-3">代码</th>
-                                                <th className="px-6 py-3">详细描述</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {faultLogs.map((log) => (
-                                                <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                                                    <td className="px-6 py-4 font-mono text-slate-300">{log.time}</td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`px-2 py-1 rounded text-xs font-bold border ${log.level === FaultLevel.EMERGENCY ? 'bg-rose-500/20 text-rose-400 border-rose-500/50' :
-                                                            log.level === FaultLevel.WARNING ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' :
-                                                                'bg-slate-700 text-slate-300 border-slate-600'
-                                                            }`}>
-                                                            {log.level === FaultLevel.WARNING ? '警告' :
-                                                                log.level === FaultLevel.SEVERE ? '严重' :
-                                                                    log.level === FaultLevel.EMERGENCY ? '紧急' : '提示'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 font-mono text-cyan-500">0x{log.code.toString(16).toUpperCase()}</td>
-                                                    <td className="px-6 py-4 text-slate-200">{log.description}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* RIGHT: CONTROLS & DIAGNOSIS (3 cols) */}
-                <div className="col-span-3 flex flex-col gap-6 h-full min-h-0 overflow-hidden">
-
-                    {/* Control Panel: DCF & Fans */}
-                    <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-1">
-                        <GlassPanel title="手动控制面板" icon={<Settings className="w-4 h-4" />} className="shrink-0">
-                            {/* Mode Toggle */}
-                            <div className="flex bg-slate-900 rounded-lg p-1 border border-white/5 mb-6">
-                                <button
-                                    onClick={() => handleControlUpdate({ mode: WorkMode.MANUAL })}
-                                    className={`flex-1 py-2 text-xs font-bold rounded flex items-center justify-center gap-2 transition-all ${control.mode === WorkMode.MANUAL ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-300'
-                                        }`}
-                                >
-                                    <Settings className="w-3 h-3" /> 手动 MANUAL
-                                </button>
-                                <button
-                                    onClick={() => handleControlUpdate({ mode: WorkMode.AUTO })}
-                                    className={`flex-1 py-2 text-xs font-bold rounded flex items-center justify-center gap-2 transition-all ${control.mode === WorkMode.AUTO ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-300'
-                                        }`}
-                                >
-                                    <Zap className="w-3 h-3" /> 自动 AUTO
-                                </button>
-                            </div>
-
-                            {/* Warnings if Auto */}
-                            {control.mode === WorkMode.AUTO && (
-                                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded text-xs flex items-center gap-2">
-                                    <AlertTriangle className="w-3 h-3 shrink-0" />
-                                    自动模式下禁用手动控制
-                                </div>
-                            )}
-
-                            <div className={`space-y-6 ${control.mode === WorkMode.AUTO ? 'opacity-50 pointer-events-none' : ''}`}>
-                                {/* DCF Controls */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="text-slate-300">DCF 目标电压 (V)</span>
-                                            <span className="text-cyan-400 font-mono">{localSettings.dcfTargetVoltage}V</span>
-                                        </div>
-                                        <input
-                                            type="range" min="0" max="60" step="0.5"
-                                            value={localSettings.dcfTargetVoltage}
-                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, dcfTargetVoltage: parseFloat(e.target.value) }))}
-                                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none accent-cyan-500 cursor-pointer"
-                                        />
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="text-slate-300">DCF 目标电流 (A)</span>
-                                            <span className="text-cyan-400 font-mono">{localSettings.dcfTargetCurrent}A</span>
-                                        </div>
-                                        <input
-                                            type="range" min="0" max="100" step="1"
-                                            value={localSettings.dcfTargetCurrent}
-                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, dcfTargetCurrent: parseFloat(e.target.value) }))}
-                                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none accent-blue-500 cursor-pointer"
-                                        />
-                                    </div>
-
-                                    {/* Apply Button for DCF */}
-                                    {hasUnsavedSettings && (
-                                        <button
-                                            onClick={() => handleControlUpdate({
-                                                dcfTargetVoltage: localSettings.dcfTargetVoltage,
-                                                dcfTargetCurrent: localSettings.dcfTargetCurrent
-                                            })}
-                                            className="w-full py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 text-xs font-bold rounded hover:bg-cyan-500/30 transition-all"
-                                        >
-                                            应用设定值
-                                        </button>
                                     )}
-                                </div>
-
-                                <div className="h-px bg-white/5" />
-
-                                {/* Fan Control */}
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-slate-300">风扇 1 转速 (%)</span>
-                                        <span className="text-cyan-400 font-mono">{control.fan1TargetSpeed}%</span>
+                                    <div className="flex bg-slate-900 rounded-lg p-1 border border-white/10 w-48">
+                                        <button
+                                            onClick={() => handleControlUpdate({ mode: WorkMode.MANUAL })}
+                                            className={`flex-1 py-1.5 text-xs font-bold rounded flex items-center justify-center gap-2 transition-all ${control.mode === WorkMode.MANUAL ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-300'
+                                                }`}
+                                        >
+                                            手动 MANUAL
+                                        </button>
+                                        <button
+                                            onClick={() => handleControlUpdate({ mode: WorkMode.AUTO })}
+                                            className={`flex-1 py-1.5 text-xs font-bold rounded flex items-center justify-center gap-2 transition-all ${control.mode === WorkMode.AUTO ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-300'
+                                                }`}
+                                        >
+                                            自动 AUTO
+                                        </button>
                                     </div>
-                                    <input
-                                        type="range" min="0" max="100" step="5"
-                                        value={control.fan1TargetSpeed}
-                                        onChange={(e) => handleControlUpdate({ fan1TargetSpeed: parseInt(e.target.value) })}
-                                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none accent-emerald-500 cursor-pointer"
-                                    />
                                 </div>
+                            }
+                            contentClassName="p-2"
+                        >
+                            <div className="flex items-stretch gap-4 h-[90px] w-full">
 
-                                <div className="h-px bg-white/5" />
-
-                                {/* Valve Toggles */}
-                                <div className="grid grid-cols-2 gap-2">
+                                {/* 1. Manual Switches Section */}
+                                <div className={`flex-[4] bg-slate-800/40 rounded-xl border border-white/5 p-2 grid grid-cols-2 gap-2 ${control.mode === WorkMode.AUTO ? 'opacity-50 pointer-events-none' : ''}`}>
                                     {[
                                         { label: '进气阀', key: 'forceInletValve' },
                                         { label: '排氢阀', key: 'forcePurgeValve' },
@@ -709,45 +683,70 @@ function App() {
                                         <button
                                             key={item.key}
                                             onClick={() => handleControlUpdate({ [item.key]: !control[item.key as keyof ControlState] })}
-                                            className={`px-2 py-2 text-xs font-medium rounded border transition-all ${control[item.key as keyof ControlState]
-                                                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50 shadow-cyan-500/20'
-                                                : 'bg-slate-800 text-slate-400 border-slate-700'
+                                            className={`w-full h-full text-[11px] font-bold tracking-wide rounded-lg border transition-all flex items-center justify-center gap-2 ${control[item.key as keyof ControlState]
+                                                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                                                : 'bg-slate-700/50 text-slate-400 border-slate-600/50 hover:bg-slate-700 hover:border-slate-500'
                                                 }`}
                                         >
-                                            {item.label} {control[item.key as keyof ControlState] ? 'ON' : 'OFF'}
+                                            <div className={`w-2 h-2 rounded-full ${control[item.key as keyof ControlState] ? 'bg-cyan-400 animate-pulse shadow-[0_0_8px_cyan]' : 'bg-slate-600'}`} />
+                                            {item.label}
                                         </button>
                                     ))}
                                 </div>
+
+                                {/* 2. Sliders Section */}
+                                <div className={`flex-[3] bg-slate-800/40 rounded-xl border border-white/5 p-3 flex flex-col justify-center gap-2 ${control.mode === WorkMode.AUTO ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <div className="bg-slate-900/50 p-2 rounded-lg border border-white/5">
+                                        <div className="flex justify-between text-[10px] mb-1 font-medium">
+                                            <span className="text-slate-400">风扇1转速</span>
+                                            <span className="text-cyan-400 font-mono">{control.fan1TargetSpeed}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="100" step="5"
+                                            value={control.fan1TargetSpeed}
+                                            onChange={(e) => handleControlUpdate({ fan1TargetSpeed: parseInt(e.target.value) })}
+                                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer block"
+                                            style={{
+                                                background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${control.fan1TargetSpeed}%, #334155 ${control.fan1TargetSpeed}%, #334155 100%)`
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="bg-slate-900/50 p-2 rounded-lg border border-white/5">
+                                        <div className="flex justify-between text-[10px] mb-1 font-medium">
+                                            <span className="text-slate-400">DCF限流</span>
+                                            <span className="text-blue-400 font-mono">{localSettings.dcfTargetCurrent}A</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="100" step="1"
+                                            value={localSettings.dcfTargetCurrent}
+                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, dcfTargetCurrent: parseFloat(e.target.value) }))}
+                                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer block"
+                                            style={{
+                                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${localSettings.dcfTargetCurrent}%, #334155 ${localSettings.dcfTargetCurrent}%, #334155 100%)`
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* 3. System Commands Section */}
+                                <div className="flex-[4] bg-slate-800/40 rounded-xl border border-white/5 p-2 grid grid-cols-2 gap-2">
+                                    <button onClick={() => handleCommand(ControlCommand.START)} className="w-full h-full rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 hover:from-cyan-500/30 hover:to-cyan-600/20 text-cyan-400 border border-cyan-500/50 text-[11px] font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.15)] group">
+                                        <Power className="w-4 h-4 transition-transform group-hover:scale-110" /> 启动系统
+                                    </button>
+                                    <button onClick={() => handleCommand(ControlCommand.EMERGENCY_STOP)} className="w-full h-full rounded-lg bg-gradient-to-br from-rose-500/20 to-rose-600/10 hover:from-rose-500/30 hover:to-rose-600/20 text-rose-400 border border-rose-500/50 text-[11px] font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.15)] group">
+                                        <Octagon className="w-4 h-4 transition-transform group-hover:scale-110" /> 紧急停止
+                                    </button>
+                                    <button onClick={() => handleCommand(ControlCommand.RESET)} className="w-full h-full rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-bold transition-all hover:border-amber-500/50">
+                                        故障复位
+                                    </button>
+                                    <button onClick={() => handleCommand(ControlCommand.SHUTDOWN)} className="w-full h-full rounded-lg bg-slate-700/50 hover:bg-slate-700/70 text-slate-300 border border-slate-600/50 text-[11px] font-bold transition-all hover:border-slate-500">
+                                        停止关机
+                                    </button>
+                                </div>
                             </div>
-
                         </GlassPanel>
-
-                        {/* System Controls (MOVED BELOW MANUAL PANEL) */}
-                        <GlassPanel title="系统主控指令" icon={<Power className="w-4 h-4" />} className="shrink-0 bg-slate-900/40">
-                            <div className="grid grid-cols-2 gap-3">
-                                <button onClick={() => handleCommand(ControlCommand.START)} className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-md bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-sm font-bold transition-all active:scale-95">
-                                    <Power className="w-4 h-4" /> 启动系统
-                                </button>
-                                <button onClick={() => handleCommand(ControlCommand.SHUTDOWN)} className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-md bg-slate-700/30 hover:bg-slate-700/50 text-slate-200 border border-slate-600/50 text-sm font-bold transition-all active:scale-95">
-                                    <Power className="w-4 h-4" /> 停止关机
-                                </button>
-                                <button onClick={() => handleCommand(ControlCommand.RESET)} className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all active:scale-95">
-                                    <RotateCcw className="w-3.5 h-3.5" /> 故障复位
-                                </button>
-                                <button onClick={() => handleCommand(ControlCommand.EMERGENCY_STOP)} className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-3 rounded-md bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/50 text-sm font-bold transition-all active:scale-95 shadow-[0_0_10px_rgba(244,63,94,0.2)]">
-                                    <Octagon className="w-4 h-4" /> 紧急停止
-                                </button>
-                            </div>
-                        </GlassPanel>
-
-                        {/* Diagnosis Panel (Compact Mode) */}
-                        <div className="shrink-0">
-                            <DiagnosisPanel diagnosis={diagnosis} onFeedback={handleDiagnosisFeedback} />
-                        </div>
                     </div>
-
-                </div>
-
+                )}
             </main>
 
             {/* ================= FOOTER ================= */}

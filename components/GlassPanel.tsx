@@ -4,12 +4,13 @@ import React from 'react';
 interface GlassPanelProps {
     children: React.ReactNode;
     className?: string;
+    contentClassName?: string;
     title?: React.ReactNode;
     icon?: React.ReactNode;
     action?: React.ReactNode;
 }
 
-export function GlassPanel({ children, className = '', title, icon, action }: GlassPanelProps) {
+export function GlassPanel({ children, className = '', contentClassName = 'p-4', title, icon, action }: GlassPanelProps) {
     return (
         <div className={`relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 backdrop-blur-md shadow-xl ${className}`}>
             {/* Glossy gradient overlay */}
@@ -27,7 +28,7 @@ export function GlassPanel({ children, className = '', title, icon, action }: Gl
             )}
 
             {/* Content */}
-            <div className="relative p-4 h-full">
+            <div className={`relative h-full ${contentClassName}`}>
                 {children}
             </div>
         </div>

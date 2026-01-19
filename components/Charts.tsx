@@ -36,12 +36,23 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
   };
 
   return (
-    <div className="bg-slate-950/60 backdrop-blur border border-slate-700/50 rounded-lg p-4 h-64 flex flex-col">
+    <div className="bg-slate-950/60 backdrop-blur border border-slate-700/50 rounded-lg p-4 h-64 flex flex-col relative">
       <h3 className="text-slate-100 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
         <span className="text-cyan-400">◈</span>
         {title}
       </h3>
-      <div className="flex-1 w-full">
+      <div className="flex-1 w-full relative">
+        {data.length === 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40 backdrop-blur-[1px]">
+            <div className="flex flex-col items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+              </span>
+              <span className="text-xs text-slate-400">系统待机 / 等待数据...</span>
+            </div>
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
             <defs>
@@ -50,7 +61,7 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
             <XAxis
               dataKey="time"
               type="number"
@@ -74,6 +85,7 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
               tickLine={{ stroke: '#64748B' }}
               axisLine={{ stroke: '#64748B' }}
               width={55}
+              domain={['auto', 'auto']}
             >
               <Label
                 value={getYAxisLabel()}
@@ -86,11 +98,12 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
             </YAxis>
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1E293B',
-                borderColor: '#475569',
-                color: '#F1F5F9',
+                backgroundColor: '#0f172a',
+                borderColor: '#334155',
+                color: '#f8fafc',
                 borderRadius: '8px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
+                fontSize: '12px',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
               }}
               itemStyle={{ color: color }}
               formatter={(value: number) => [`${typeof value === 'number' ? value.toFixed(2) : value} ${unit}`, title]}
@@ -100,10 +113,11 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
               type="monotone"
               dataKey={dataKey}
               stroke={color}
+              strokeWidth={2}
               fillOpacity={1}
               fill={`url(#color${dataKey})`}
               isAnimationActive={false}
-              strokeWidth={2}
+              connectNulls
             />
           </AreaChart>
         </ResponsiveContainer>
