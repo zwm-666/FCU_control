@@ -12,7 +12,8 @@ interface GaugeProps {
 
 export const Gauge: React.FC<GaugeProps> = ({ label, value, unit, color = "text-blue-400", min = 0, max = 100, size = 'normal' }) => {
   // Calculate percentage for a mini bar
-  const percent = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  const range = max - min;
+  const percent = range === 0 ? 0 : Math.min(100, Math.max(0, ((value - min) / range) * 100));
 
   if (size === 'small') {
     return (

@@ -90,6 +90,12 @@ export const IndustrialSchematic: React.FC<Props> = ({ data }) => {
                         <stop offset="40%" stopColor="rgba(255,255,255,0.1)" />
                         <stop offset="100%" stopColor="transparent" />
                     </linearGradient>
+
+                    <radialGradient id="glassGradient" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stopColor="#1a3a5c" stopOpacity="0.6" />
+                        <stop offset="60%" stopColor="#0d2137" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#051525" stopOpacity="0.3" />
+                    </radialGradient>
                 </defs>
 
                 {/* 全局玻璃罩 - 模拟参考图的厚实玻璃感 */}

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:tailwind": "node scripts/check-tailwind-build.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.555.0",
@@ -15,6 +16,7 @@
     "recharts": "^3.5.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.22",

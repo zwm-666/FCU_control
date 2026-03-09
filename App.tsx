@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { INITIAL_MACHINE_STATE, INITIAL_CONTROL_STATE, MachineState, ControlState, SystemState, FaultLevel, FAULT_CODES, ConnectionConfig, WorkMode, DiagnosisResult, DiagnosisLabel, ControlCommand } from './types';
+import { INITIAL_MACHINE_STATE, INITIAL_CONTROL_STATE, MachineState, ControlState, SystemState, FaultLevel, FAULT_CODES, ConnectionConfig, WorkMode, DiagnosisResult, DiagnosisLabel, ControlCommand, ChartDataPoint, FaultLog } from './types';
 import { generateControlPacket } from './services/canProtocol';
 import { wsService } from './services/websocketService';
 import { IndustrialSchematic } from './components/IndustrialSchematic';
@@ -13,32 +13,24 @@ import { Wifi, WifiOff, Save, Square, Activity, LayoutDashboard, Settings, Alert
 
 // File System Access API Types
 interface FileSystemWritableFileStream extends WritableStream {
-    write(data: any): Promise<void>;
+    write(data: string | BufferSource | Blob): Promise<void>;
     seek(position: number): Promise<void>;
     truncate(size: number): Promise<void>;
 }
 
 interface FileSystemFileHandle {
-    createWritable(options?: any): Promise<FileSystemWritableFileStream>;
+    createWritable(options?: Record<string, unknown>): Promise<FileSystemWritableFileStream>;
 }
 
 declare global {
     interface Window {
-        showSaveFilePicker(options?: any): Promise<FileSystemFileHandle>;
+        showSaveFilePicker(options?: Record<string, unknown>): Promise<FileSystemFileHandle>;
     }
 }
 
 const HISTORY_LENGTH = 100;
 
 type ViewType = 'monitor' | 'charts' | 'control' | 'alarms';
-
-interface FaultLog {
-    id: number;
-    time: string;
-    level: FaultLevel;
-    code: number;
-    description: string;
-}
 
 function App() {
     const [machine, setMachine] = useState<MachineState>(INITIAL_MACHINE_STATE);
@@ -54,7 +46,7 @@ function App() {
     });
 
     // Chart History
-    const [history, setHistory] = useState<any[]>([]);
+    const [history, setHistory] = useState<ChartDataPoint[]>([]);
     // Fault History
     const [faultLogs, setFaultLogs] = useState<FaultLog[]>([]);
     // Diagnosis Result
@@ -132,11 +124,11 @@ function App() {
             writableStreamRef.current = stream;
             setIsLogging(true);
 
-        } catch (err: any) {
-            if (err.name !== 'AbortError') {
-                console.error("Failed to start logging:", err);
-                alert("无法创建日志文件: " + err.message);
-            }
+        } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
+            const message = err instanceof Error ? err.message : String(err);
+            console.error("Failed to start logging:", err);
+            alert("无法创建日志文件: " + message);
         }
     };
 
@@ -191,59 +183,89 @@ function App() {
             setMachine(INITIAL_MACHINE_STATE);
         }
 
-        return () => { };
     }, [isSystemRunning]);
 
-    // Update History for Charts & Fault Logs
+    // Ref for latest machine state to be accessed by interval
+    const machineRef = React.useRef(machine);
+    // Ref for chart start time to keep x-axis continuous
+    const startTimeRef = React.useRef<number | null>(null);
+    useEffect(() => { machineRef.current = machine; }, [machine]);
+
+    // Chart History Update (Fixed Frequency: 2Hz)
     useEffect(() => {
         if (!isConnected) return;
 
-        setHistory(prev => {
-            const now = Date.now();
-            // 最多保留10分钟数据(600秒)
-            const maxSeconds = 600;
+        const interval = setInterval(() => {
+            setHistory(prev => {
+                const now = Date.now();
+                // 最多保留10分钟数据(600秒)
+                const maxSeconds = 600;
 
-            // 先清理超过10分钟的旧数据
-            let filteredHistory = prev.filter(p => (now - p.timestamp) / 1000 <= maxSeconds);
+                // 先清理超过10分钟的旧数据
+                let filteredHistory = prev.filter(p => (now - p.timestamp) / 1000 <= maxSeconds);
 
-            // 计算相对于最早数据点的秒数
-            const baseTime = filteredHistory.length > 0 ? filteredHistory[0].timestamp : now;
+                // 确定/维护基准时间 - 修复时间轴回跳问题
+                if (filteredHistory.length === 0) {
+                    startTimeRef.current = now;
+                } else if (startTimeRef.current === null) {
+                    startTimeRef.current = filteredHistory[0].timestamp;
+                }
+                const baseTime = startTimeRef.current!;
+                const currentMachine = machineRef.current;
 
-            const newPoint = {
-                time: Math.round((now - baseTime) / 1000), // 相对秒数
-                timestamp: now,
-                voltage: Number(machine.power.stackVoltage) || 0,
-                current: Number(machine.power.stackCurrent) || 0,
-                temp: Number(machine.sensors.stackTemp) || 0
-            };
+                const newPoint = {
+                    // 为了Tooltip更平滑，time其实可以保留一位小数: (now - baseTime) / 1000
+                    // 但原逻辑是 Math.round，且 XAxis allowDecimals={false}
+                    // 如果500ms采样，Math.round会导致两个点time相同吗？
+                    // 0.0s -> 0
+                    // 0.5s -> 1 (round) -> 重复？
+                    // 建议改为保留一位小数的秒数，或者 XAxis 允许小数
 
-            // 重新计算所有点的相对时间
-            const newHistory = [...filteredHistory, newPoint].map(p => ({
-                ...p,
-                time: Math.round((p.timestamp - baseTime) / 1000)
-            }));
+                    // 修正：为了配合500ms采样，time应该允许0.5。
+                    // 但Charts.tsx XAxis allowDecimals={false}。
+                    // 暂时保持逻辑，但要注意 X轴刻度。
+                    // 实际上 Charts.tsx 的 XAxis type="number" 且 domain=[0, 'dataMax']
+                    // 如果我们传浮点数，比如 0.5, 1.0, 1.5，Recharts 是支持的。
+                    // 只是 Charts.tsx 中 allowDecimals={false} 可能会强制不显示小数刻度，但不影响 Tooltip。
 
-            return newHistory;
-        });
+                    time: Number(((now - baseTime) / 1000).toFixed(1)),
+                    timestamp: now,
+                    voltage: Number(currentMachine.power.stackVoltage) || 0,
+                    current: Number(currentMachine.power.stackCurrent) || 0,
+                    temp: Number(currentMachine.sensors.stackTemp) || 0,
+                    h2Pressure: Number(currentMachine.sensors.h2CylinderPressure) || 0,
+                    stackPower: Number(currentMachine.power.stackPower) || 0
+                };
 
-        if (machine.io.faultCode !== 0) {
+                return [...filteredHistory, newPoint];
+            });
+        }, 500);
+
+        return () => clearInterval(interval);
+    }, [isConnected]);
+
+    // Fault Logs Update (Event Driven)
+    const faultCode = machine.io.faultCode;
+    const faultLevel = machine.status.faultLevel;
+    useEffect(() => {
+        if (faultCode !== 0) {
             setFaultLogs(prev => {
                 const lastLog = prev[0];
-                if (!lastLog || lastLog.code !== machine.io.faultCode || (Date.now() - new Date('1970/01/01 ' + lastLog.time).getTime() > 2000)) {
+                const now = Date.now();
+                if (!lastLog || lastLog.code !== faultCode || (now - lastLog.id > 2000)) {
                     const newLog: FaultLog = {
-                        id: Date.now(),
+                        id: now,
                         time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
-                        level: machine.status.faultLevel,
-                        code: machine.io.faultCode,
-                        description: FAULT_CODES[machine.io.faultCode] || "未知故障"
+                        level: faultLevel,
+                        code: faultCode,
+                        description: FAULT_CODES[faultCode] || "未知故障"
                     };
                     return [newLog, ...prev].slice(0, 50);
                 }
                 return prev;
             });
         }
-
-    }, [machine, isConnected]);
+    }, [faultCode, faultLevel]);
 
     // Data Logging Collection (Buffered)
     useEffect(() => {
@@ -270,8 +292,10 @@ function App() {
         setControl(newControl);
         wsService.sendControl(newControl);
 
-        const packet = generateControlPacket(newControl);
-        console.log("TX CAN ID:", packet.id.toString(16), "DATA:", packet.data);
+        if (import.meta.env.DEV) {
+            const packet = generateControlPacket(newControl);
+            console.log("TX CAN ID:", packet.id.toString(16), "DATA:", packet.data);
+        }
     };
 
     const handleCommand = (cmd: ControlCommand) => {
@@ -292,7 +316,6 @@ function App() {
     // 诊断反馈处理
     const handleDiagnosisFeedback = (label: DiagnosisLabel) => {
         wsService.sendDiagnosisFeedback(label);
-        console.log("发送诊断反馈:", label);
     };
 
     const getStatusText = (state: SystemState) => {
@@ -474,11 +497,15 @@ function App() {
                         )}
 
                         {activeView === 'charts' && (
-                            <div className="p-6 h-full flex flex-col gap-4 pt-16">
-                                <h3 className="text-lg font-bold text-slate-200 mb-2">系统实时趋势分析</h3>
-                                <RealTimeChart data={history} title="电堆电压趋势" dataKey="voltage" unit="V" color="#22D3EE" />
-                                <RealTimeChart data={history} title="电堆电流趋势" dataKey="current" unit="A" color="#3B82F6" />
-                                <RealTimeChart data={history} title="电堆温度趋势" dataKey="temp" unit="°C" color="#F59E0B" />
+                            <div className="p-4 h-full flex flex-col gap-3 overflow-auto">
+                                <h3 className="text-lg font-bold text-slate-200 shrink-0">系统实时趋势分析</h3>
+                                <div className="flex-1 min-h-0 flex flex-col gap-3">
+                                    <RealTimeChart data={history} title="电堆电压趋势" dataKey="voltage" unit="V" color="#22D3EE" />
+                                    <RealTimeChart data={history} title="电堆电流趋势" dataKey="current" unit="A" color="#3B82F6" />
+                                    <RealTimeChart data={history} title="电堆功率趋势" dataKey="stackPower" unit="kW" color="#8B5CF6" />
+                                    <RealTimeChart data={history} title="电堆温度趋势" dataKey="temp" unit="°C" color="#F59E0B" />
+                                    <RealTimeChart data={history} title="氢瓶压力趋势" dataKey="h2Pressure" unit="MPa" color="#10B981" />
+                                </div>
                             </div>
                         )}
 

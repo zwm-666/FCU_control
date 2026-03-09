@@ -12,6 +12,18 @@ dist
 dist-ssr
 *.local
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.env
+
+# ML Models (large binary files)
+backend/models/*.keras
+backend/models/*.h5
+backend/models/*.weights.h5
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

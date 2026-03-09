@@ -1,42 +1,71 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Label } from 'recharts';
+import { ChartDataPoint } from '../types';
 
 interface ChartProps {
-  data: any[];
+  data: ChartDataPoint[];
   title: string;
-  dataKey: string;
+  dataKey: keyof ChartDataPoint;
   color: string;
   unit: string;
 }
 
 export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, color, unit }) => {
-  // 根据title确定Y轴标签
-  const getYAxisLabel = () => {
+  const gradientId = `color-${title}-${dataKey}`;
+
+  const yAxisLabel = useMemo(() => {
     if (title.includes('电压')) return '电压/V';
     if (title.includes('电流')) return '电流/A';
     if (title.includes('温度')) return '温度/℃';
+    if (title.includes('压力')) return '压力/MPa';
+    if (title.includes('功率')) return '功率/kW';
     return `${title}/${unit}`;
-  };
+  }, [title, unit]);
 
-  // 计算X轴刻度 - 固定间隔
-  const getXAxisTicks = () => {
+  const yAxisDomain = useMemo((): [number, number] => {
+    if (data.length === 0) return [0, 1];
+
+    const values = data.map(d => d[dataKey]).filter(v => typeof v === 'number' && !isNaN(v));
+    if (values.length === 0) return [0, 1];
+
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const range = maxVal - minVal;
+
+    let step: number;
+    if (maxVal <= 1) {
+      step = 0.1;
+    } else if (maxVal <= 10) {
+      step = 1;
+    } else if (maxVal <= 100) {
+      step = 10;
+    } else {
+      step = 50;
+    }
+
+    const padding = range < step ? step : range * 0.15;
+    const yMin = Math.max(0, Math.floor((minVal - padding) / step) * step);
+    const yMax = Math.max(yMin + step, Math.ceil((maxVal + padding) / step) * step);
+
+    return [yMin, yMax];
+  }, [data, dataKey]);
+
+  const xAxisTicks = useMemo(() => {
     if (data.length === 0) return [0];
     const maxTime = Math.max(...data.map(d => d.time || 0));
-    const ticks = [];
-    // 每30秒一个刻度
+    const ticks: number[] = [];
     const interval = 30;
     for (let i = 0; i <= maxTime; i += interval) {
       ticks.push(i);
     }
-    // 确保包含最后一个值
     if (ticks[ticks.length - 1] < maxTime) {
       ticks.push(Math.ceil(maxTime / interval) * interval);
     }
     return ticks;
-  };
+  }, [data]);
 
   return (
-    <div className="bg-slate-950/60 backdrop-blur border border-slate-700/50 rounded-lg p-4 h-64 flex flex-col relative">
+    <div className="bg-slate-950/60 backdrop-blur border border-slate-700/50 rounded-lg p-4 flex-1 min-h-[180px] flex flex-col relative">
       <h3 className="text-slate-100 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
         <span className="text-cyan-400">◈</span>
         {title}
@@ -56,7 +85,7 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
             <defs>
-              <linearGradient id={`color${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={color} stopOpacity={0.4} />
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
@@ -66,11 +95,11 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
               dataKey="time"
               type="number"
               domain={[0, 'dataMax']}
-              ticks={getXAxisTicks()}
+              ticks={xAxisTicks}
               tick={{ fill: '#94A3B8', fontSize: 10 }}
               tickLine={{ stroke: '#64748B' }}
               axisLine={{ stroke: '#64748B' }}
-              allowDecimals={false}
+              allowDecimals={true}
             >
               <Label
                 value="时间/s"
@@ -85,10 +114,11 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
               tickLine={{ stroke: '#64748B' }}
               axisLine={{ stroke: '#64748B' }}
               width={55}
-              domain={['auto', 'auto']}
+              domain={yAxisDomain}
+              allowDataOverflow={false}
             >
               <Label
-                value={getYAxisLabel()}
+                value={yAxisLabel}
                 angle={-90}
                 position="insideLeft"
                 fill="#94A3B8"
@@ -115,7 +145,7 @@ export const RealTimeChart: React.FC<ChartProps> = ({ data, title, dataKey, colo
               stroke={color}
               strokeWidth={2}
               fillOpacity={1}
-              fill={`url(#color${dataKey})`}
+              fill={`url(#${gradientId})`}
               isAnimationActive={false}
               connectNulls
             />

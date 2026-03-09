@@ -1,0 +1,65 @@
+======================================================================
+加载 EnhancedMSTGAT 模型失败: <class 'diagnosis.EnhancedMSTGAT'> could not be deserialized properly. Please ensure that components that are Python object instances (layers, models, etc.) returned by `get_config()` are explicitly deserialized in the model's `from_config()` method.
+EnhancedMSTGAT 模型回放测试
+
+config={'module': None, 'class_name': 'EnhancedMSTGAT', 'config': {'input_shape': [7], 'num_nodes': 7, 'num_classes': 4, 'hidden_units': 192, 'attention_heads': 16, 'dropout_rate': 0.20559374642540468, 'max_sequence_length': 15, 'knn_top_k': 6}, 'registered_name': 'EnhancedMSTGAT', 'build_config': {'input_shape': [None, 7]}, 'compile_config': None}.
+
+Exception encountered: Unable to revive model from config. When overriding the `get_config()` method, make sure that the returned config contains all items used as arguments in the  constructor to <class 'diagnosis.EnhancedMSTGAT'>, which is the default behavior. You can override this default behavior by defining a `from_config(cls, config)` class method to specify how to create an instance of EnhancedMSTGAT from its config.
+
+Received config={'input_shape': [7], 'num_nodes': 7, 'num_classes': 4, 'hidden_units': 192, 'attention_heads': 16, 'dropout_rate': 0.20559374642540468, 'max_sequence_length': 15, 'knn_top_k': 6}
+
+Error encountered during deserialization: __init__() got an unexpected keyword argument 'input_shape'
+Traceback (most recent call last):
+  File "D:\python3.9\lib\site-packages\keras\src\models\model.py", line 663, in from_config
+    return cls(**config)
+TypeError: __init__() got an unexpected keyword argument 'input_shape'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\python3.9\lib\site-packages\keras\src\saving\serialization_lib.py", line 718, in deserialize_keras_object
+    instance = cls.from_config(inner_config)
+  File "D:\python3.9\lib\site-packages\keras\src\models\model.py", line 665, in from_config
+    raise TypeError(
+TypeError: Unable to revive model from config. When overriding the `get_config()` method, make sure that the returned config contains all items used as arguments in the  constructor to <class 'diagnosis.EnhancedMSTGAT'>, which is the default behavior. You can override this default behavior by defining a `from_config(cls, config)` class method to specify how to create an instance of EnhancedMSTGAT from its config.
+
+Received config={'input_shape': [7], 'num_nodes': 7, 'num_classes': 4, 'hidden_units': 192, 'attention_heads': 16, 'dropout_rate': 0.20559374642540468, 'max_sequence_length': 15, 'knn_top_k': 6}
+
+Error encountered during deserialization: __init__() got an unexpected keyword argument 'input_shape'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\86191\Downloads\h2-fcu-modern-dashboard\backend\diagnosis.py", line 501, in _initialize
+    self.model = tf.keras.models.load_model(
+  File "D:\python3.9\lib\site-packages\keras\src\saving\saving_api.py", line 189, in load_model
+    return saving_lib.load_model(
+  File "D:\python3.9\lib\site-packages\keras\src\saving\saving_lib.py", line 370, in load_model
+    return _load_model_from_fileobj(
+  File "D:\python3.9\lib\site-packages\keras\src\saving\saving_lib.py", line 447, in _load_model_from_fileobj
+    model = _model_from_config(
+  File "D:\python3.9\lib\site-packages\keras\src\saving\saving_lib.py", line 436, in _model_from_config
+    model = deserialize_keras_object(
+  File "D:\python3.9\lib\site-packages\keras\src\saving\serialization_lib.py", line 720, in deserialize_keras_object
+    raise TypeError(
+TypeError: <class 'diagnosis.EnhancedMSTGAT'> could not be deserialized properly. Please ensure that components that are Python object instances (layers, models, etc.) returned by `get_config()` are explicitly deserialized in the model's `from_config()` method.
+
+config={'module': None, 'class_name': 'EnhancedMSTGAT', 'config': {'input_shape': [7], 'num_nodes': 7, 'num_classes': 4, 'hidden_units': 192, 'attention_heads': 16, 'dropout_rate': 0.20559374642540468, 'max_sequence_length': 15, 'knn_top_k': 6}, 'registered_name': 'EnhancedMSTGAT', 'build_config': {'input_shape': [None, 7]}, 'compile_config': None}.
+
+Exception encountered: Unable to revive model from config. When overriding the `get_config()` method, make sure that the returned config contains all items used as arguments in the  constructor to <class 'diagnosis.EnhancedMSTGAT'>, which is the default behavior. You can override this default behavior by defining a `from_config(cls, config)` class method to specify how to create an instance of EnhancedMSTGAT from its config.
+
+Received config={'input_shape': [7], 'num_nodes': 7, 'num_classes': 4, 'hidden_units': 192, 'attention_heads': 16, 'dropout_rate': 0.20559374642540468, 'max_sequence_length': 15, 'knn_top_k': 6}
+
+Error encountered during deserialization: __init__() got an unexpected keyword argument 'input_shape'
+Traceback (most recent call last):
+  File "C:\Users\86191\Downloads\h2-fcu-modern-dashboard\backend\test_model_accuracy.py", line 291, in <module>
+数据集: D:\python\pythonProject3\数据集2\fuel_cell_labeled_dataset_improved.csv
+======================================================================
+======================================================================
+测试方式：通过 OnlineDiagnosis.predict() (Dashboard 实际调用路径)
+======================================================================
+诊断器状态: {'available': True, 'is_trained': False, 'sample_count': 0, 'model_type': 'EnhancedMSTGAT (CEO-QAAdamW)', 'model_path': 'C:\\Users\\86191\\Downloads\\h2-fcu-modern-dashboard\\backend\\models\\ceo_qaadam_emstgat.keras'}
+    acc1 = test_via_diagnosis_module()
+  File "C:\Users\86191\Downloads\h2-fcu-modern-dashboard\backend\test_model_accuracy.py", line 97, in test_via_diagnosis_module
+    print("\u274c 模型未加载，无法测试！")
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 0: illegal multibyte sequence

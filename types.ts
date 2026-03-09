@@ -133,6 +133,24 @@ export const FAULT_CODES: Record<number, string> = {
   0x21: "风扇 2 故障 (警告)",
 };
 
+export interface ChartDataPoint {
+  time: number;
+  timestamp: number;
+  voltage: number;
+  current: number;
+  temp: number;
+  h2Pressure: number;
+  stackPower: number;
+}
+
+export interface FaultLog {
+  id: number;
+  time: string;
+  level: FaultLevel;
+  code: number;
+  description: string;
+}
+
 export const INITIAL_MACHINE_STATE: MachineState = {
   connected: false,
   lastUpdate: 0,

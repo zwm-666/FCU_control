@@ -91,15 +91,7 @@ import math
 import random
 from abc import ABC, abstractmethod
 
-# ... (Configuration imports) ...
-from config import (
-    CANALYST_DEVICE_TYPE, CANALYST_DEVICE_INDEX, CANALYST_CHANNEL,
-    CAN_BITRATE, WEBSOCKET_HOST, WEBSOCKET_PORT,
-    CAN_TX_ID, BROADCAST_RATE, CAN_INTERFACE_TYPE
-)
-# ... (Protocol imports) ...
-
-# ... (Ctypes Definitions and BAUD_RATE_MAP remain the same) ...
+from config import CAN_INTERFACE_TYPE
 
 class CANDriver(ABC):
     """Abstract base class for CAN drivers"""
@@ -538,9 +530,8 @@ class CANWebSocketServer:
                     # 显示每条消息的ID和数据
                     for msg_dict in messages:
                         data_hex = msg_dict['data'].hex().upper()
-                        # 格式化为 XX XX XX XX 便于阅读
                         data_formatted = ' '.join([data_hex[i:i+2] for i in range(0, len(data_hex), 2)])
-                        logger.info(f"📥 CAN RX | ID: 0x{msg_dict['arbitration_id']:08X} | 数据: {data_formatted}")
+                        logger.debug(f"📥 CAN RX | ID: 0x{msg_dict['arbitration_id']:08X} | 数据: {data_formatted}")
                         
                         # Convert to object for compatibility
                         msg = SimpleMessage(msg_dict['arbitration_id'], msg_dict['data'], msg_dict['is_extended_id'])
@@ -629,14 +620,11 @@ class CANWebSocketServer:
                         self.clients -= disconnected
                         
                         broadcast_count += 1
-                        # 每10次广播输出一次日志
-                        if broadcast_count % 10 == 0:
+                        if broadcast_count % 100 == 0:
                             logger.info(f"📡 已向 {len(self.clients)} 个客户端广播状态 (第 {broadcast_count} 次)")
-                        # 前5次广播显示完整数据，便于调试
-                        if broadcast_count <= 5:
+                        elif broadcast_count <= 5:
                             state_data = self.machine_state.to_dict()
                             logger.info(f"🔍 广播数据: connected={state_data.get('connected')}, "
-                                       f"lastUpdate={state_data.get('lastUpdate')}, "
                                        f"stackVoltage={state_data.get('power', {}).get('stackVoltage')}, "
                                        f"heartbeat={state_data.get('status', {}).get('heartbeat')}")
                             
