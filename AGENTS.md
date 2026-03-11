@@ -1,73 +1,36 @@
-# AGENTS.md - Antigravity 代理开发指南
+# Repository Guidelines
 
-此文件为在 **H2 FCU Modern Dashboard** 仓库中运行的 AI 代理提供关键信息。
+## Project Structure & Module Organization
+- 前端入口在 `index.tsx`，主界面编排集中于 `App.tsx`，共享类型放在 `types.ts`。
+- 可复用界面组件位于 `components/`，通信与协议逻辑位于 `services/`，例如 `services/websocketService.ts` 与 `services/canProtocol.ts`。
+- 后端位于 `backend/`：`server.py` 提供 WebSocket 桥接，`config.py` 管理运行模式，`can_protocol*.py` 维护 CAN 协议，`kerneldlls/` 存放 Windows 驱动 DLL。
+- 构建辅助脚本在 `scripts/`。当前没有独立 `tests/` 目录，已有后端校验脚本为 `backend/test_model_accuracy.py`。
 
-## 1. 项目概览
-氢燃料电池单元 (FCU) 的实时监控与控制仪表盘。
-- **前端**: React 19, TypeScript, Vite 6, TailwindCSS 4, Recharts。
-- **后端**: Python 3.9+, WebSocket 服务器, ZLG CAN 驱动 (通过 `ctypes` 调用 `ControlCAN.dll`)。
+## Build, Test, and Development Commands
+- `npm install`：安装前端依赖。
+- `npm run dev`：启动 Vite 开发服务器，默认监听 `http://localhost:3000`。
+- `npm run build`：执行生产构建；提交前优先运行它验证 TypeScript 与打包配置。
+- `npm run preview`：本地预览构建结果。
+- `npm run test:tailwind`：检查 Tailwind 构建链路是否正常。
+- `cd backend && pip install -r requirements.txt && python -u server.py`：启动后端；无硬件时将 `backend/config.py` 中 `CAN_INTERFACE_TYPE` 设为 `"virtual"`。
 
-## 2. 核心语言规则 (CRITICAL)
-- **对话语言**: 以后所有与用户的对话必须使用 **中文**。
-- **文档语言**: 所有生成的 Markdown (.md) 文件必须使用 **中文**。
-- **代码例外**: 代码实现（变量名、注释、逻辑）保持使用 **英文**。
+## Coding Style & Naming Conventions
+- TypeScript / React 使用 4 空格缩进、强制分号、严格类型检查；避免 `any`。
+- 组件文件使用 `PascalCase`，变量与函数使用 `camelCase`，常量使用 `UPPER_SNAKE_CASE`。
+- Python 使用 4 空格缩进；类名 `PascalCase`，函数与变量 `snake_case`，函数签名保留类型提示。
+- 导入顺序保持为 React → 第三方库 → 本地模块；优先相对路径，也可使用 `@/` 指向仓库根目录。
 
-## 3. 关键命令
+## Testing Guidelines
+- 当前前端没有统一测试框架；UI 变更至少运行 `npm run build` 和 `npm run test:tailwind`。
+- 后端测试或验证脚本沿用 `test_*.py` 命名，并尽量与相关模块放在同一目录。
+- 新增测试时优先覆盖 CAN 协议解析、WebSocket 数据流和诊断逻辑，避免只做静态快照式断言。
 
-### 前端 (根目录)
-| 操作 | 命令 |
-| :--- | :--- |
-| 安装依赖 | `npm install` |
-| 启动开发服务器 | `npm run dev` |
-| 构建项目 | `npm run build` |
-| 预览构建 | `npm run preview` |
+## Commit & Pull Request Guidelines
+- 现有提交同时存在中文和英文主题，如 `Add README to repo root`、`页面修改`；请保持祈使语气、主题简短、范围明确，必要时使用 `feat:`、`fix:`、`docs:`。
+- Pull Request 应包含：变更摘要、影响范围（前端/后端/协议）、关联问题，以及 UI 截图或关键终端日志。
+- 若修改 `backend/config.py`、CAN ID、控制确认流程或硬件依赖，请在描述中单独标注风险与验证方式。
 
-### 后端 (backend/ 目录)
-| 操作 | 命令 |
-| :--- | :--- |
-| 安装依赖 | `pip install websockets` |
-| 启动服务器 | `python -u server.py` |
-| 模拟模式 | 在 `backend/config.py` 中设置 `CAN_INTERFACE_TYPE = "virtual"` |
-
-## 4. 代码风格指南
-
-### 4.1 TypeScript / React
-- **缩进**: 4 个空格。
-- **分号**: 强制使用。
-- **导入**: 
-  - 使用相对路径。
-  - 允许使用 `@/` 别名指向根目录。
-  - 排序: React 相关 -> 外部库 -> 本地类型/服务 -> 组件 -> 样式。
-- **命名规范**:
-  - 组件: `PascalCase` (如 `MetricCard.tsx`)。
-  - 变量/函数: `camelCase` (如 `isSystemRunning`)。
-  - 常量: `UPPER_SNAKE_CASE` (如 `HISTORY_LENGTH`)。
-  - 接口/枚举: `PascalCase`。
-- **类型安全**:
-  - 严禁使用 `any`，优先使用显式类型。
-  - 系统状态和故障等级使用枚举 (见 `types.ts`)。
-- **组件**:
-  - 使用 Hooks 的函数组件。
-  - 图标统一使用 `lucide-react`。
-
-### 4.2 Python (后端)
-- **缩进**: 4 个空格。
-- **命名规范**:
-  - 类: `PascalCase`。
-  - 函数/变量: `snake_case`。
-- **类型提示**: 必须包含函数签名类型提示。
-
-## 5. 状态管理模式
-- **局部状态**: UI 切换使用 `useState`。
-- **全局状态**: 由 `App.tsx` 管理并通过 Props 下发。
-- **WebSocket 同步**: `MachineState` 接收后端推送，`ControlState` 向后端发送。
-
-## 6. CAN 协议实现
-- **协议定义**: 同时存在于 `services/canProtocol.ts` (前端) 和 `backend/can_protocol1.py` (后端)。
-- **字节序**: 小端序 (Little-endian)。
-- **核心 ID**: `0x18FF01F0` (心跳), `0x18FF02F0` (功率), `0x18FF03F0` (传感器), `0x18FF10A0` (控制)。
-
-## 7. 代理须知 (Agent Tips)
-- **性能**: 前端接收频率为 10Hz，避免在渲染主循环中进行高能耗计算。
-- **安全**: 系统涉及硬件控制，所有“写入”操作（阀门、加热器）必须包含安全检查或用户确认。
-- **环境**: 后端仅支持 Windows (需加载 `.dll`)。
+## Security & Configuration Tips
+- 后端依赖 `ControlCAN.dll`，仅支持 Windows；不要提交本机专用路径、凭据或未说明的数据文件。
+- 所有控制写入都视为安全敏感操作；涉及阀门、加热器或模式切换时，界面与后端都应保留确认或保护逻辑。
+- 避免提交生成物，例如 `backend/__pycache__/`；若必须更新脚本输出，请在 PR 中说明来源与用途。
