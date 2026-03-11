@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { AlertCircle, X, ChevronDown, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { FaultLevel } from '../types';
 

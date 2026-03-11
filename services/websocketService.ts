@@ -3,7 +3,12 @@
  * Connects to Python backend WebSocket server
  */
 
-import { MachineState, ControlState, DiagnosisResult, DiagnosisLabel } from '../types';
+import {
+  MachineState,
+  ControlState,
+  DiagnosisResult,
+  DiagnosisLabel,
+} from "../types";
 
 type MachineStateCallback = (state: MachineState) => void;
 type ConnectionCallback = (connected: boolean) => void;
@@ -11,184 +16,226 @@ type DiagnosisCallback = (result: DiagnosisResult) => void;
 
 const isDev = import.meta.env.DEV;
 
+// Reconnect configuration
+const RECONNECT_BASE_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 30000;
+const RECONNECT_MAX_ATTEMPTS = 10;
+const RECONNECT_JITTER_MS = 500;
+
 class WebSocketService {
-    private ws: WebSocket | null = null;
-    private reconnectTimer: number | null = null;
-    private machineStateCallbacks: Set<MachineStateCallback> = new Set();
-    private connectionCallbacks: Set<ConnectionCallback> = new Set();
-    private diagnosisCallbacks: Set<DiagnosisCallback> = new Set();
-    private reconnectAttempts = 0;
-    private maxReconnectAttempts = 10;
-    private reconnectDelay = 2000;
+  private ws: WebSocket | null = null;
+  private reconnectTimer: number | null = null;
+  private reconnectUrl: string | null = null;
 
-    connect(url: string = 'ws://localhost:8765'): void {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-            return;
-        }
+  private machineStateCallbacks: Set<MachineStateCallback> = new Set();
+  private connectionCallbacks: Set<ConnectionCallback> = new Set();
+  private diagnosisCallbacks: Set<DiagnosisCallback> = new Set();
 
-        if (isDev) console.log(`Connecting to WebSocket: ${url}`);
+  private reconnectAttempts = 0;
+  /** Whether the user intentionally disconnected — suppresses auto-reconnect */
+  private intentionalDisconnect = false;
 
-        try {
-            this.ws = new WebSocket(url);
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
 
-            this.ws.onopen = () => {
-                if (isDev) console.log('WebSocket connected');
-                this.reconnectAttempts = 0;
-                this.notifyConnection(true);
-            };
+  connect(url: string = "ws://localhost:8765"): void {
+    if (this.ws?.readyState === WebSocket.OPEN) return;
 
-            this.ws.onmessage = (event) => {
-                this.handleMessage(event.data);
-            };
+    this.intentionalDisconnect = false;
+    this.reconnectUrl = url;
 
-            this.ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
+    if (isDev) console.log(`[WS] Connecting to ${url}`);
+    this.createSocket(url);
+  }
 
-            this.ws.onclose = () => {
-                if (isDev) console.log('WebSocket disconnected');
-                this.notifyConnection(false);
-                this.attemptReconnect(url);
-            };
+  disconnect(): void {
+    this.intentionalDisconnect = true;
+    this.clearReconnectTimer();
 
-        } catch (error) {
-            console.error('Failed to create WebSocket:', error);
-            this.notifyConnection(false);
-        }
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
     }
 
-    disconnect(): void {
-        if (this.reconnectTimer) {
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = null;
-        }
+    this.reconnectAttempts = 0;
+    this.notifyConnection(false);
+  }
 
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-        }
+  sendControl(control: ControlState): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
 
+    this.ws.send(JSON.stringify({ type: "control", data: control }));
+    if (isDev) console.log("[WS] TX Control:", control);
+  }
+
+  sendDiagnosisFeedback(label: DiagnosisLabel): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+
+    this.ws.send(
+      JSON.stringify({ type: "diagnosis_feedback", data: { label } }),
+    );
+    if (isDev) console.log("[WS] TX Diagnosis Feedback:", label);
+  }
+
+  onMachineState(callback: MachineStateCallback): () => void {
+    this.machineStateCallbacks.add(callback);
+    return () => {
+      this.machineStateCallbacks.delete(callback);
+    };
+  }
+
+  onConnection(callback: ConnectionCallback): () => void {
+    this.connectionCallbacks.add(callback);
+    // Immediately deliver the current connection state to the new subscriber
+    callback(this.ws?.readyState === WebSocket.OPEN);
+    return () => {
+      this.connectionCallbacks.delete(callback);
+    };
+  }
+
+  onDiagnosis(callback: DiagnosisCallback): () => void {
+    this.diagnosisCallbacks.add(callback);
+    return () => {
+      this.diagnosisCallbacks.delete(callback);
+    };
+  }
+
+  isConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal helpers
+  // ---------------------------------------------------------------------------
+
+  private createSocket(url: string): void {
+    try {
+      this.ws = new WebSocket(url);
+
+      this.ws.onopen = () => {
+        if (isDev) console.log("[WS] Connected");
         this.reconnectAttempts = 0;
+        this.notifyConnection(true);
+      };
+
+      this.ws.onmessage = (event) => {
+        this.handleMessage(event.data);
+      };
+
+      this.ws.onerror = (error) => {
+        console.error("[WS] Error:", error);
+      };
+
+      this.ws.onclose = () => {
+        if (isDev) console.log("[WS] Disconnected");
         this.notifyConnection(false);
-    }
 
-    private attemptReconnect(url: string): void {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error('Max reconnection attempts reached');
-            return;
+        if (!this.intentionalDisconnect) {
+          this.scheduleReconnect();
         }
+      };
+    } catch (error) {
+      console.error("[WS] Failed to create WebSocket:", error);
+      this.notifyConnection(false);
+      if (!this.intentionalDisconnect) {
+        this.scheduleReconnect();
+      }
+    }
+  }
 
-        this.reconnectAttempts++;
-        if (isDev) console.log(`Reconnecting (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-
-        this.reconnectTimer = window.setTimeout(() => {
-            this.connect(url);
-        }, this.reconnectDelay);
+  /**
+   * Exponential backoff with jitter:
+   *   delay = min(base * 2^attempt, maxDelay) + random(0, jitter)
+   *
+   * attempt 0 →  1.0 s + jitter
+   * attempt 1 →  2.0 s + jitter
+   * attempt 2 →  4.0 s + jitter
+   * attempt 3 →  8.0 s + jitter
+   * attempt 4 → 16.0 s + jitter
+   * attempt 5 → 30.0 s + jitter  (capped)
+   */
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
+      console.error("[WS] Max reconnection attempts reached. Giving up.");
+      return;
     }
 
-    private handleMessage(data: string): void {
-        try {
-            const message = JSON.parse(data);
+    const exponentialDelay = Math.min(
+      RECONNECT_BASE_DELAY_MS * Math.pow(2, this.reconnectAttempts),
+      RECONNECT_MAX_DELAY_MS,
+    );
+    const jitter = Math.random() * RECONNECT_JITTER_MS;
+    const delay = exponentialDelay + jitter;
 
-            if (message.type === 'machine_state') {
-                const state = message.data as MachineState;
-                this.notifyMachineState(state);
+    this.reconnectAttempts++;
 
-                if (message.diagnosis) {
-                    this.notifyDiagnosis(message.diagnosis as DiagnosisResult);
-                }
-            }
+    if (isDev) {
+      console.log(
+        `[WS] Reconnecting in ${(delay / 1000).toFixed(1)}s ` +
+          `(attempt ${this.reconnectAttempts}/${RECONNECT_MAX_ATTEMPTS})`,
+      );
+    }
 
-        } catch (error) {
-            console.error('Failed to parse WebSocket message:', error);
+    this.reconnectTimer = window.setTimeout(() => {
+      if (!this.intentionalDisconnect && this.reconnectUrl) {
+        this.createSocket(this.reconnectUrl);
+      }
+    }, delay);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private handleMessage(data: string): void {
+    try {
+      const message = JSON.parse(data);
+
+      if (message.type === "machine_state") {
+        this.notifyMachineState(message.data as MachineState);
+
+        if (message.diagnosis) {
+          this.notifyDiagnosis(message.diagnosis as DiagnosisResult);
         }
+      }
+    } catch (error) {
+      console.error("[WS] Failed to parse message:", error);
     }
+  }
 
-    sendControl(control: ControlState): void {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-            const message = {
-                type: 'control',
-                data: control
-            };
+  private notifyMachineState(state: MachineState): void {
+    this.machineStateCallbacks.forEach((cb) => {
+      try {
+        cb(state);
+      } catch (e) {
+        console.error("[WS] machineState callback error:", e);
+      }
+    });
+  }
 
-            this.ws.send(JSON.stringify(message));
-            if (isDev) console.log('TX Control:', control);
-        }
-    }
+  private notifyConnection(connected: boolean): void {
+    this.connectionCallbacks.forEach((cb) => {
+      try {
+        cb(connected);
+      } catch (e) {
+        console.error("[WS] connection callback error:", e);
+      }
+    });
+  }
 
-    sendDiagnosisFeedback(label: DiagnosisLabel): void {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-            const message = {
-                type: 'diagnosis_feedback',
-                data: { label }
-            };
-
-            this.ws.send(JSON.stringify(message));
-            if (isDev) console.log('TX Diagnosis Feedback:', label);
-        }
-    }
-
-    onMachineState(callback: MachineStateCallback): () => void {
-        this.machineStateCallbacks.add(callback);
-
-        // Return unsubscribe function
-        return () => {
-            this.machineStateCallbacks.delete(callback);
-        };
-    }
-
-    onConnection(callback: ConnectionCallback): () => void {
-        this.connectionCallbacks.add(callback);
-
-        // Call immediately with current state
-        callback(this.ws?.readyState === WebSocket.OPEN);
-
-        // Return unsubscribe function
-        return () => {
-            this.connectionCallbacks.delete(callback);
-        };
-    }
-
-    onDiagnosis(callback: DiagnosisCallback): () => void {
-        this.diagnosisCallbacks.add(callback);
-        return () => {
-            this.diagnosisCallbacks.delete(callback);
-        };
-    }
-
-    private notifyMachineState(state: MachineState): void {
-        this.machineStateCallbacks.forEach(callback => {
-            try {
-                callback(state);
-            } catch (error) {
-                console.error('Error in machine state callback:', error);
-            }
-        });
-    }
-
-    private notifyConnection(connected: boolean): void {
-        this.connectionCallbacks.forEach(callback => {
-            try {
-                callback(connected);
-            } catch (error) {
-                console.error('Error in connection callback:', error);
-            }
-        });
-    }
-
-    private notifyDiagnosis(result: DiagnosisResult): void {
-        this.diagnosisCallbacks.forEach(callback => {
-            try {
-                callback(result);
-            } catch (error) {
-                console.error('Error in diagnosis callback:', error);
-            }
-        });
-    }
-
-    isConnected(): boolean {
-        return this.ws?.readyState === WebSocket.OPEN;
-    }
+  private notifyDiagnosis(result: DiagnosisResult): void {
+    this.diagnosisCallbacks.forEach((cb) => {
+      try {
+        cb(result);
+      } catch (e) {
+        console.error("[WS] diagnosis callback error:", e);
+      }
+    });
+  }
 }
 
 // Export singleton instance

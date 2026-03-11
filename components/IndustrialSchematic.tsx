@@ -1,5 +1,5 @@
 
-import React from 'react';
+import * as React from 'react';
 import { MachineState, SystemState } from '../types';
 import { AdvancedPipe } from './AdvancedPipe';
 import { IndustrialValve } from './IndustrialValve';

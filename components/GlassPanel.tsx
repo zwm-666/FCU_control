@@ -1,5 +1,5 @@
 
-import React from 'react';
+import * as React from 'react';
 
 interface GlassPanelProps {
     children: React.ReactNode;

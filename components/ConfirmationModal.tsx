@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Info, AlertCircle, X } from 'lucide-react';
 
 export type ModalType = 'info' | 'warning' | 'danger';

@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 
 /**
  * AdvancedPipe - 玻璃管道组件

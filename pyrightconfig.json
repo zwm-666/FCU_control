@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
+  "include": [
+    "backend"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    "**/__pycache__",
+    "**/.git",
+    "**/.idea",
+    "**/.vscode"
+  ],
+  "ignore": [
+    "backend/diagnosis.py",
+    "backend/can_protocol.py",
+    "backend/can_protocol1.py"
+  ],
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "warning",
+  "reportImplicitRelativeImport": "warning",
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownLambdaType": "none",
+  "reportUnknownReturnType": "none",
+  "reportUnknownDecoratorType": "none",
+  "reportGeneralTypeIssues": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOptionalCall": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportOptionalIterable": "warning",
+  "reportPrivateImportUsage": "none",
+  "reportUnusedImport": "warning",
+  "reportUnusedVariable": "warning",
+  "pythonVersion": "3.10",
+  "executionEnvironments": [
+    {
+      "root": "backend",
+      "extraPaths": [
+        "backend"
+      ]
+    }
+  ]
+}

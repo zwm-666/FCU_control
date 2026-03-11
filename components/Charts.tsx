@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import * as React from 'react';
+import { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Label } from 'recharts';
 import { ChartDataPoint } from '../types';
 

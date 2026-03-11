@@ -34,3 +34,6 @@ backend/models/*.weights.h5
 *.njsproj
 *.sln
 *.sw?
+
+# Local junk
+nul
