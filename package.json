@@ -10,6 +10,7 @@
     "test:tailwind": "node scripts/check-tailwind-build.mjs"
   },
   "dependencies": {
+    "appwrite": "^23.0.0",
     "lucide-react": "^0.555.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",

@@ -1,0 +1,7 @@
+{
+  "status": "failed",
+  "background_samples": 0,
+  "explanation_samples": 0,
+  "feature_count": 8,
+  "detail": "No module named 'shap'"
+}

@@ -37,3 +37,12 @@ backend/models/*.weights.h5
 
 # Local junk
 nul
+
+# Data files
+*.xlsx
+
+# Documents
+*.docx
+
+# Pytest cache
+.pytest_cache/
