@@ -1,0 +1,171 @@
+ 
+ 1 1 
+ 2 2 
+ 3 3 
+ 4 4 
+ 5 5 
+ 6 6 
+ A  A 
+ B  B 
+ C  C 
+ D  DS t V   S c h e m a t i c 1 _ 1R ^ e g   2 0 2 5 - 1 2 - 3 0 
+f e e g   2 0 2 6 - 0 3 - 0 5 
+g [P  B o a r d 2 V  u  P 1 
+~ R6 
+ 3 0 0 b o o s t [    
+rHg,\:[   u         1        Qq         2 
+ V 1 . 0 A 4 V	z R  E D AENA1 
+INA2 
+GND3 
+INB4OUTB5VDD6OUTA7ENB8U1 
+UCC27524DR 
+C1 
+220uF12V 
+PWM13V+ 
+13V- 
+IN_I- IN_I+D1 
+SL20100DS 
+C14 
+470uFC17 
+1uFC22 
+22uFIN_C+ 
+IN_C- 
+OUT_C+ 
+OUT_C-R1 
+2m  48V+ 
+48V- 
+OUT_I- OUT_I+IN_C+ 
+IN_C- 
+OUT_C+OUT_C- 
+13V+ 
+13V-R4 
+180k   
+R5 
+10k   
+R6 
+39k   
+R7 
+10k  48V+ 
+48V-OUT_V 
+IN_V 
+REF1 
+GND2 
+V+3IN+4IN-5OUT6U2 
+INA199A1DCKR 
+REF1 
+GND2 
+V+3IN+4IN-5OUT6U3 
+INA199A1DCKROUT_I- OUT_I+ 
+IN_I- IN_I+3.3VIN_I3.3VOUT_I13V+ 
+13V- 
+48V+ 
+48V- 
+OUT_IIN_I 
+IN_V 
+OUT_VGND 
+24V 
+PWM 
+3.3VC27 
+100nF 
+C28 
+100nF 
+1122CN1 
+KH-XH-2A-Z48V+ 
+48V-U8 
+MBR20100DTC13 
+100nF 
+R8 
+10k  R9 
+2.2   
+U14 
+  g M3*5+6 
+U15 
+  g M3*5+6 
+U16 
+  g M3*5+6 
+U17 
+  g M3*5+6Q3 
+HB10N200SD5 
+ES3JB 
+C33 
+100nF 
+C25 
+100nF 
+C26 
+100nFR18 
+5m   
+C34 
+47uFC35 
+10uFC36 
+10uFC19 
+100nFU2011 
+223344U21 
+T44001 
+11 
+223344U22 
+T44001 
+11 
+223344U23 
+T44001 
+11 
+223344U24 
+T44001 
+C37 
+1uF 
+11223344CN2 
+ZX-XH2.54-4PZZ 
+11223344CN3 
+ZX-XH2.54-4PZZ1122CN4 
+KH-XH-2A-Z24V 
+GNDPGND 
+PGND 
+PGND 
+L3 
+BLM21PG221SN1DL4 
+BLM21PG221SN1DPGNDVCAP1 
+GND2 
+EN3CATHODE4GATE5ANODE6U25 
+MX74700TC39 
+1uFQ5 
+HB10N200S 
+R17 
+47   
+ 1 1 
+ 2 2 
+ 3 3 
+ 4 4 
+ 5 5 
+ 6 6 
+ A  A 
+ B  B 
+ C  C 
+ D  DS t V   S c h e m a t i c 1 _ 1R ^ e g   2 0 2 5 - 1 2 - 3 0 
+f e e g   2 0 2 6 - 0 1 - 2 4 
+g [P  B o a r d 2 V  u  P 2 
+~ R6 
+ 3 0 0 b o o s t [    
+rHg,\:[   u         2        Qq         2 
+ V 1 . 0 A 4 V	z R  E D AR10 
+10  C29 
+100nFL2 
+47uH 
+D3 
+SS310D4 
+SMAJ70CAD7 
+SS510 
+D8 
+SS510C31 
+100nFR11 
+30m  R12 
+300k   
+R13 
+21.5k  C32 
+47pF24V12V 
+SW1 
+ILIM2 
+VIN3 
+GND4FB5EN6POK7BS8ILIM9U9 
+TX4139C38 
+220uF 
+C30 
+10uF

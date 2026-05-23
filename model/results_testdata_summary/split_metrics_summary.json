@@ -10,11 +10,11 @@
     "use_gpu": true,
     "skip_ceo": true,
     "output_dir": "results_testdata_80_20",
-    "accuracy": 0.9982046678635548,
-    "precision": 0.998209539863925,
-    "recall": 0.9982046678635548,
-    "f1_score": 0.9982007433003828,
-    "prediction_time": 5.885168790817261
+    "accuracy": 0.9995511669658886,
+    "precision": 0.999551472086918,
+    "recall": 0.9995511669658886,
+    "f1_score": 0.999550923134398,
+    "prediction_time": 7.466843605041504
   },
   {
     "data_path": "测试数据.xlsx",
@@ -27,11 +27,11 @@
     "use_gpu": true,
     "skip_ceo": true,
     "output_dir": "results_testdata_70_30",
-    "accuracy": 0.9982046678635548,
-    "precision": 0.998209539863925,
-    "recall": 0.9982046678635548,
-    "f1_score": 0.9982007383823922,
-    "prediction_time": 6.730806350708008
+    "accuracy": 0.9985038898862957,
+    "precision": 0.9985072747508064,
+    "recall": 0.9985038898862957,
+    "f1_score": 0.998501164687046,
+    "prediction_time": 6.946153163909912
   },
   {
     "data_path": "测试数据.xlsx",
@@ -44,10 +44,10 @@
     "use_gpu": true,
     "skip_ceo": true,
     "output_dir": "results_testdata_60_40",
-    "accuracy": 0.9977553310886644,
-    "precision": 0.9977629401358213,
-    "recall": 0.9977553310886644,
-    "f1_score": 0.997749173832574,
-    "prediction_time": 7.18967866897583
+    "accuracy": 0.9975308641975309,
+    "precision": 0.9975400680246495,
+    "recall": 0.9975308641975309,
+    "f1_score": 0.9975234065126722,
+    "prediction_time": 14.93906855583191
   }
 ]

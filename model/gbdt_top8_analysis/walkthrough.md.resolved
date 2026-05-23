@@ -1,0 +1,85 @@
+# 过干新增数据分析与离线预测对比报告
+
+## 分析概述
+
+本报告分为两个部分：
+1. **数据分析 (GBDT Top10)**：使用数据分析提取的 10 个最重要特征对 `过干新增.xlsx`（5267条）进行相似度的统计分析。
+2. **深度学习离线预测比对**：将这批数据通过团队自主研发的深度学习核心模型（EnhancedMSTGAT）进行离线推断，并与 GBDT 极简特征的预测结果作交叉比对。
+
+---
+
+## 1. 深度学习模型 vs 统计特征模型：高度一致 🤝
+
+> [!IMPORTANT]
+> **深度学习核心模型（EnhancedMSTGAT）**的分类判断与 **基于 Top10 特征的 GBDT 模型** 在预测上有着 **94.48% 的极高一致性**。
+> 两个模型都坚定地认为这批 `过干新增` 数据绝大比例呈现出了“过干”特征。
+
+### 总体预测分布
+
+| 预测类别 | 深度学习 (EnhancedMSTGAT) | 数据分析 (GBDT Top10) |
+|:---:|:---:|:---:|
+| **过干** | **3611 (68.6%)** | **3354 (63.7%)** |
+| 正常 | 1607 (30.5%) | 1850 (35.1%) |
+| 过湿 | 49 (0.9%) | 63 (1.2%) |
+
+### 不一致情况分析 (剩余 5.52%)
+当两个模型发生分歧时（共 291 条）：
+- **90.7% (264条)** 的情况是：**深度学习模型认为已经是“过干”，但 GBDT 认为还是“正常”**。
+- 这说明拥有时序感受野和跨尺度图注意力的深度学习模型（EnhancedMSTGAT）对“过干”趋势的捕捉比纯统计均值的 GBDT 模型更加**敏锐和前置**。
+
+````carousel
+![混淆矩阵比对](C:\Users\86191\.gemini\antigravity\brain\90300e4f-9d21-4dc6-a830-bee0d81022ea\08_model_comparison_confusion_matrix.png)
+<!-- slide -->
+![模型预测置信度比对](C:\Users\86191\.gemini\antigravity\brain\90300e4f-9d21-4dc6-a830-bee0d81022ea\09_model_comparison_confidence.png)
+````
+
+---
+
+## 2. GBDT Top10 特征剖析
+
+我们在所有历史诊断数据中计算出区分度最大的十个关键特征。
+
+| 排名 | 特征名 | GBDT重要性占比 |
+|:---:|:---:|:---:|
+| 1 | 电堆总电压 | ~ 39.7% |
+| 2 | EIS电阻实部 | ~ 15.6% |
+| 3 | 单片31 | ~ 14.6% |
+| 4 | 电堆总电流 | ~ 8.5% |
+| 5 | 单片25 | ~ 6.5% |
+
+![Top10特征重要性](C:\Users\86191\.gemini\antigravity\brain\90300e4f-9d21-4dc6-a830-bee0d81022ea\01_top10_feature_importance.png)
+
+---
+
+## 3. 分布特征印证：为何被判定为过干？
+
+针对这 10 个特征我们计算了 `过干新增` 数据同已知的“正常”、“过干”、“过湿”数据的统计距离。结果无一例外：
+
+> [!NOTE]
+> 从 KS分布检验、Bhattacharyya距离、以及 Cohen's d 尺度来看，“过干新增”数据组在分布形态上，绝大部分特征呈现出的 **综合相似度： 过干 (0.71) > 正常 (0.53) > 过湿 (0.46)**。
+
+| 对比组 | 平均KS统计量 ↓ | 平均Bhatt距离 ↓ | 平均Cohen's d ↓ | ★综合相似度 ↑ |
+|:---:|:---:|:---:|:---:|:---:|
+| **vs 过干** | **0.4051** | **0.2689** | **0.6399** | **0.7117** |
+| vs 正常 | 0.6424 | 0.8413 | 1.3501 | 0.5275 |
+| vs 过湿 | 0.8430 | 1.1866 | 1.6061 | 0.4608 |
+
+### 可视化特征比对
+
+````carousel
+![相关性热力图](C:\Users\86191\.gemini\antigravity\brain\90300e4f-9d21-4dc6-a830-bee0d81022ea\02_correlation_heatmap.png)
+<!-- slide -->
+![相似度雷达图](C:\Users\86191\.gemini\antigravity\brain\90300e4f-9d21-4dc6-a830-bee0d81022ea\07_similarity_radar.png)
+<!-- slide -->
+![Top10特征箱线图对比](C:\Users\86191\.gemini\antigravity\brain\90300e4f-9d21-4dc6-a830-bee0d81022ea\03_feature_distribution_boxplot.png)
+<!-- slide -->
+![Top10特征核密度分布对比](C:\Users\86191\.gemini\antigravity\brain\90300e4f-9d21-4dc6-a830-bee0d81022ea\04_feature_density_comparison.png)
+````
+
+## 输出文件成果
+
+所有的完整表格与图表已保存在本地目录 `gbdt_top10_analysis`：
+
+- **深度学习包含置信度的分类结果**：`gbdt_top10_analysis\过干新增_深度学习预测结果.xlsx`
+- **GBDT各特征相关性指标明细表**：`gbdt_top10_analysis\过干新增_GBDT_Top10分类结果.xlsx`
+- **两模型交叉对比日志**：`gbdt_top10_analysis\comparison_log.txt`

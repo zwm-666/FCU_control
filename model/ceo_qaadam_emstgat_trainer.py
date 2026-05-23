@@ -881,18 +881,19 @@ def plot_confusion_matrix(y_true, y_pred, class_names: List[str] = None, save_pa
 def plot_feature_importance(feature_names: List[str], importances: np.ndarray, 
                            top_n: int = 15, save_path: str = None):
     """绘制特征重要性条形图"""
-    # 排序
-    sorted_idx = np.argsort(importances)[::-1][:top_n]
+    # 排序，实际显示数量取 top_n 和特征总数的较小值
+    actual_n = min(top_n, len(feature_names))
+    sorted_idx = np.argsort(importances)[::-1][:actual_n]
     sorted_names = [feature_names[i] for i in sorted_idx]
     sorted_importances = importances[sorted_idx]
-    
+
     fig, ax = plt.subplots(figsize=(10, 6))
     bars = ax.barh(range(len(sorted_names)), sorted_importances, color='#2196F3')
     ax.set_yticks(range(len(sorted_names)))
     ax.set_yticklabels(sorted_names)
     ax.invert_yaxis()
     ax.set_xlabel('Importance', fontsize=12)
-    ax.set_title(f'Top {top_n} Feature Importance', fontsize=14, fontweight='bold')
+    ax.set_title(f'Top {actual_n} Feature Importance', fontsize=14, fontweight='bold')
     ax.grid(axis='x', alpha=0.3)
     
     plt.tight_layout()

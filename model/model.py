@@ -35,7 +35,12 @@ from tensorflow.keras import Model, layers
 from tensorflow.keras import backend as K
 from tensorflow.keras.layers import Dense, RepeatVector
 
-from preprocess_utils import save_preprocess_meta, train_preprocess_and_select
+from preprocess_utils import (
+    prepare_training_dataframe,
+    save_preprocess_meta,
+    train_preprocess_and_select,
+    train_preprocess_and_select_from_df,
+)
 
 # ================== 日志配置 ==================
 logging.basicConfig(
@@ -598,9 +603,22 @@ class EnhancedMSTGAT(Model):
             "hidden_units": self.config.hidden_units,
             "attention_heads": self.config.attention_heads,
             "dropout_rate": self.config.dropout_rate,
+            "embedding_dim": self.config.embedding_dim,
             "max_sequence_length": self.config.max_sequence_length,
+            "use_batch_norm": self.config.use_batch_norm,
+            "activation": self.config.activation,
+            "kernel_initializer": self.config.kernel_initializer,
+            "graph_type": self.config.graph_type,
             "knn_top_k": self.config.knn_top_k,
+            "dilation_rate": self.config.dilation_rate,
         }
+
+    @classmethod
+    def from_config(cls, config):
+        config = dict(config)
+        if "input_shape" in config and isinstance(config["input_shape"], list):
+            config["input_shape"] = tuple(config["input_shape"])
+        return cls(ModelConfig(**config))
 
 
 # ================== 优化器：QAAdamW_Lite ==================
@@ -959,10 +977,29 @@ def _ensure_current_columns_selected(
     )
 
 
-def load_and_preprocess_data(data_path: str, test_size: float = 0.2, seed: int = 42):
+def load_and_preprocess_data(
+    data_path: str,
+    test_size: float = 0.2,
+    seed: int = 42,
+    prepared_df: Optional["pd.DataFrame"] = None,
+    label_col: Optional[str] = None,
+):
     """加载并预处理数据（委托给 preprocess_utils 公共模块）。"""
     logger.info(f"加载数据: {data_path}")
-    data = train_preprocess_and_select(data_path=data_path, test_size=test_size, seed=seed)
+    if prepared_df is None:
+        data = train_preprocess_and_select(
+            data_path=data_path,
+            test_size=test_size,
+            seed=seed,
+            label_col=label_col,
+        )
+    else:
+        data = train_preprocess_and_select_from_df(
+            df=prepared_df,
+            test_size=test_size,
+            seed=seed,
+            label_col=label_col,
+        )
 
     logger.info(
         f"选择 {len(data['feature_names'])} 个特征，类别数: {data['num_classes']}"
@@ -1199,7 +1236,9 @@ SHAP_EXPLANATION_SAMPLE_SIZE = 64
 SHAP_KERNEL_NSAMPLES = 100
 
 
-def aggregate_shap_global_importance(shap_values) -> np.ndarray:
+def aggregate_shap_global_importance(
+    shap_values, feature_count: Optional[int] = None
+) -> np.ndarray:
     """聚合 SHAP 值为单个全局特征重要性向量。"""
     if hasattr(shap_values, "values"):
         shap_values = shap_values.values
@@ -1209,6 +1248,17 @@ def aggregate_shap_global_importance(shap_values) -> np.ndarray:
         return np.array([], dtype=float)
     if values.ndim == 1:
         return np.abs(values)
+
+    if feature_count is not None:
+        candidate_axes = [
+            axis for axis, size in enumerate(values.shape) if int(size) == int(feature_count)
+        ]
+        if len(candidate_axes) == 1:
+            feature_axis = candidate_axes[0]
+            reduction_axes = tuple(
+                axis for axis in range(values.ndim) if axis != feature_axis
+            )
+            return np.mean(np.abs(values), axis=reduction_axes)
 
     reduction_axes = tuple(range(values.ndim - 1))
     return np.mean(np.abs(values), axis=reduction_axes)
@@ -1342,7 +1392,10 @@ def generate_shap_artifacts(
 
         explainer = shap.KernelExplainer(predict_fn, background)
         shap_values = explainer.shap_values(explanation, nsamples=kernel_nsamples)
-        global_importance = aggregate_shap_global_importance(shap_values)
+        global_importance = aggregate_shap_global_importance(
+            shap_values,
+            feature_count=feature_count,
+        )
 
         if global_importance.shape[0] != feature_count:
             raise ValueError(
@@ -1866,6 +1919,9 @@ def run_training_pipeline(
     use_gpu: bool = True,
     skip_ceo: bool = False,
     output_dir: str = "results",
+    prepared_df: Optional["pd.DataFrame"] = None,
+    prepared_label_col: Optional[str] = None,
+    gpu_info: Optional[Dict[str, Any]] = None,
 ):
     """完整训练流程
 
@@ -1885,17 +1941,31 @@ def run_training_pipeline(
     os.makedirs(output_dir, exist_ok=True)
 
     # GPU 配置
-    if use_gpu:
-        gpu_info = setup_gpu()
-    else:
-        gpu_info = {"gpus_available": [], "mixed_precision": False}
+    if gpu_info is None:
+        if use_gpu:
+            gpu_info = setup_gpu()
+        else:
+            gpu_info = {"gpus_available": [], "mixed_precision": False}
 
     # 设置随机种子
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
     # 加载数据
-    data = load_and_preprocess_data(data_path, test_size=test_size, seed=seed)
+    if prepared_df is None and prepared_label_col is None:
+        data = load_and_preprocess_data(
+            data_path,
+            test_size=test_size,
+            seed=seed,
+        )
+    else:
+        data = load_and_preprocess_data(
+            data_path,
+            test_size=test_size,
+            seed=seed,
+            prepared_df=prepared_df,
+            label_col=prepared_label_col,
+        )
     X_train, X_test = data["X_train"], data["X_test"]
     y_train, y_test = data["y_train"], data["y_test"]
     num_classes = data["num_classes"]
@@ -2123,6 +2193,17 @@ def run_multi_split_experiments(
 ):
     """运行多组测试集比例实验。"""
     summaries = []
+    shared_gpu_info: Optional[Dict[str, Any]] = None
+    if use_gpu:
+        shared_gpu_info = setup_gpu()
+
+    prepared_df = None
+    prepared_label_col = None
+    prepare_df_fn = globals().get("prepare_training_dataframe")
+    if callable(prepare_df_fn):
+        prepared_df, prepared_label_col = prepare_df_fn(data_path)
+        logger.info("已完成一次性通用清洗，后续各比例仅执行划分后拟合型预处理")
+
     for test_size in test_sizes:
         test_ratio = int(round(test_size * 100))
         train_ratio = 100 - test_ratio
@@ -2137,6 +2218,9 @@ def run_multi_split_experiments(
             use_gpu=use_gpu,
             skip_ceo=skip_ceo,
             output_dir=output_dir,
+            prepared_df=prepared_df,
+            prepared_label_col=prepared_label_col,
+            gpu_info=shared_gpu_info,
         )
         summaries.append(
             {

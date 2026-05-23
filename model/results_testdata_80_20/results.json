@@ -1,9 +1,9 @@
 {
-  "accuracy": 0.9982046678635548,
-  "precision": 0.998209539863925,
-  "recall": 0.9982046678635548,
-  "f1_score": 0.9982007433003828,
-  "prediction_time": 5.885168790817261,
+  "accuracy": 0.9995511669658886,
+  "precision": 0.999551472086918,
+  "recall": 0.9995511669658886,
+  "f1_score": 0.999550923134398,
+  "prediction_time": 7.466843605041504,
   "best_params": {
     "learning_rate": 0.0008127349453725082,
     "weight_decay": 0.00042655193657822774,
@@ -23,7 +23,7 @@
     "xla_enabled": false,
     "memory_growth": false
   },
-  "training_time": 971.7984752655029,
+  "training_time": 1242.1691687107086,
   "test_size": 0.2,
   "train_ratio": 80,
   "test_ratio": 20,

@@ -1,0 +1,38 @@
+[
+  {
+    "feature": "EIS电阻实部",
+    "importance": 0.10789900192151546
+  },
+  {
+    "feature": "总阻抗",
+    "importance": 0.05503346206481976
+  },
+  {
+    "feature": "次低阻抗",
+    "importance": 0.048611721362617884
+  },
+  {
+    "feature": "标准差",
+    "importance": 0.047195797461281074
+  },
+  {
+    "feature": "最低阻抗",
+    "importance": 0.040548701154135225
+  },
+  {
+    "feature": "平均阻抗",
+    "importance": 0.03759382381988873
+  },
+  {
+    "feature": "次高阻抗",
+    "importance": 0.03367298601514058
+  },
+  {
+    "feature": "EIS电阻虚部",
+    "importance": 0.033329583969800014
+  },
+  {
+    "feature": "最高阻抗",
+    "importance": 0.02598940594121567
+  }
+]

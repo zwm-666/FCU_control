@@ -160,17 +160,12 @@ def get_class_names(raw_labels: np.ndarray, encoded_labels: np.ndarray) -> List[
     return class_names
 
 
-# ================== 训练侧预处理（拟合规则） ==================
-def train_preprocess_and_select(
+def prepare_training_dataframe(
     data_path: str,
-    test_size: float = 0.2,
-    seed: int = 42,
     label_col: Optional[str] = None,
-    importance_threshold: float = 0.95,
-) -> Dict[str, Any]:
-    """训练场景：拟合缺失值/异常值/标准化/特征选择，并返回可复用元数据。"""
+) -> Tuple[pd.DataFrame, str]:
+    """执行与划分比例无关的通用清洗，返回可复用 DataFrame。"""
     df = load_tabular_data(data_path)
-
     cols_to_remove = ["State", "state", "tsec"]
     for col in cols_to_remove:
         if col in df.columns:
@@ -187,6 +182,24 @@ def train_preprocess_and_select(
     if label_col not in df.columns:
         raise ValueError(f"标签列不存在: {label_col}")
 
+    df = remove_duplicates(df)
+    return df, str(label_col)
+
+
+def train_preprocess_and_select_from_df(
+    df: pd.DataFrame,
+    test_size: float = 0.2,
+    seed: int = 42,
+    label_col: Optional[str] = None,
+    importance_threshold: float = 0.95,
+) -> Dict[str, Any]:
+    """基于已清洗 DataFrame 拟合预处理与特征选择。"""
+    df = df.copy()
+    if label_col is None:
+        label_col = str(df.columns[-1])
+    if label_col not in df.columns:
+        raise ValueError(f"标签列不存在: {label_col}")
+
     feature_columns = [c for c in df.columns if c != label_col]
     power_columns, current_columns = identify_power_and_current_columns(feature_columns)
 
@@ -194,8 +207,6 @@ def train_preprocess_and_select(
         df = df.drop(columns=power_columns)
     if not current_columns:
         raise ValueError("未识别到电流列，无法满足保留电流特征的训练要求")
-
-    df = remove_duplicates(df)
 
     assert_feature_policy([c for c in df.columns if c != label_col])
     current_columns = [c for c in current_columns if c in df.columns and c != label_col]
@@ -302,6 +313,25 @@ def train_preprocess_and_select(
         "retained_current_columns": [str(x) for x in current_columns],
         "preprocess_meta": preprocess_meta,
     }
+
+
+# ================== 训练侧预处理（拟合规则） ==================
+def train_preprocess_and_select(
+    data_path: str,
+    test_size: float = 0.2,
+    seed: int = 42,
+    label_col: Optional[str] = None,
+    importance_threshold: float = 0.95,
+) -> Dict[str, Any]:
+    """训练场景：拟合缺失值/异常值/标准化/特征选择，并返回可复用元数据。"""
+    df, resolved_label_col = prepare_training_dataframe(data_path, label_col=label_col)
+    return train_preprocess_and_select_from_df(
+        df=df,
+        test_size=test_size,
+        seed=seed,
+        label_col=resolved_label_col,
+        importance_threshold=importance_threshold,
+    )
 
 
 # ================== 元数据读写 ==================
