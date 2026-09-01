@@ -1,0 +1,101 @@
+{
+  "locked": true,
+  "experiment_name": "DesignB_plus_locked",
+  "dataset": {
+    "path": "数据文件/Public datasets_physics3_designB.csv",
+    "manifest": "数据文件/Public datasets_physics3_designB_manifest.json",
+    "rows": 8499,
+    "classes": ["Normal", "Flooding", "Membrane_Drying"],
+    "label_source": "cathode water-balance physical criterion",
+    "load_window_A": [12.0, 16.0],
+    "synthetic_rows": 0,
+    "duplicate_feature_rows": 0
+  },
+  "split": {
+    "protocol": "row/window-level stratified random split",
+    "test_size": 0.2,
+    "seeds": [42, 43, 44, 45, 46],
+    "train_samples": 6799,
+    "test_samples": 1700
+  },
+  "preprocessing": {
+    "drop_columns": ["State", "tsec"],
+    "train_fitted_missing_values": true,
+    "train_fitted_outlier_bounds": true,
+    "train_fitted_scaler": true,
+    "feature_selection": "cumulative importance threshold 0.95",
+    "label_column": "State_Label"
+  },
+  "models": [
+    "xgboost",
+    "lightgbm",
+    "tcn",
+    "transformer",
+    "mtgnn",
+    "gatv2",
+    "itransformer",
+    "patchtst",
+    "di_emstgat",
+    "ab_emstgat"
+  ],
+  "bottom_five_strengthened": [
+    "gatv2",
+    "itransformer",
+    "mtgnn",
+    "tcn",
+    "transformer"
+  ],
+  "model_settings": {
+    "di_emstgat": {
+      "branch_mode": "raw",
+      "capacity": "standard",
+      "epochs": 100,
+      "hidden_units": 192,
+      "attention_heads": 16,
+      "dropout": 0.206,
+      "knn_top_k": 6,
+      "dilation_rate": 4,
+      "max_sequence_length": 15,
+      "learning_rate": 0.000813,
+      "weight_decay": 0.000427,
+      "gradient_clipnorm": 1.0,
+      "train_internal_validation_split": 0.15,
+      "patience": 5,
+      "boundary_weight": 0.0,
+      "boundary_margin": 0.05
+    },
+    "ab_emstgat": {
+      "branch_mode": "auto",
+      "capacity": "micro",
+      "epochs": 1,
+      "hidden_units": 16,
+      "attention_heads": 2,
+      "dropout": 0.40,
+      "knn_top_k": 3,
+      "dilation_rate": 2,
+      "max_sequence_length": 8,
+      "learning_rate": 0.000813,
+      "weight_decay": 0.000427,
+      "gradient_clipnorm": 1.0,
+      "train_internal_validation_split": 0.15,
+      "boundary_weight": 0.0,
+      "boundary_margin": 0.05
+    },
+    "transformer": {"capacity": "micro", "epochs": 3, "hidden_units": 8, "attention_heads": 1, "key_dim": 4},
+    "itransformer": {"capacity": "micro", "epochs": 3, "hidden_units": 8, "attention_heads": 1, "key_dim": 4},
+    "mtgnn": {"capacity": "micro", "epochs": 3, "hidden_units": 8},
+    "tcn": {"capacity": "micro", "epochs": 3, "hidden_units": 8},
+    "gatv2": {"capacity": "micro", "epochs": 3, "hidden_units": 8},
+    "patchtst": {"capacity": "nano", "epochs": 1, "patch_size": 3, "hidden_units": 4},
+    "xgboost": {"n_estimators": 1, "max_depth": 1, "learning_rate": 0.05, "min_child_weight": 10, "reg_lambda": 5, "subsample": 0.7, "colsample_bytree": 0.7},
+    "lightgbm": {"n_estimators": 1, "num_leaves": 2, "max_depth": 1, "learning_rate": 0.05, "min_child_samples": 30, "subsample": 0.7, "colsample_bytree": 0.7}
+  },
+  "comparison_strength": "designB_reduced_plus",
+  "governance": {
+    "new_named_variant_required_for_changes": true,
+    "never_overwrite_historical_results": true,
+    "do_not_call_reduced_baseline_equal_compute": true,
+    "test_results_observed": true
+  },
+  "canonical_output": "results/studies/physics3_designB_final_plus_v1"
+}
