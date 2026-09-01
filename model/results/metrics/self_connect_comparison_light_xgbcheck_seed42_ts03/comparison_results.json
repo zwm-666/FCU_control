@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "data_path": "D:\\my_project\\h2-fcu-modern-dashboard\\model\\数据文件\\self_connect.xlsx",
+    "label_col": "label",
+    "test_size": 0.3,
+    "seed": 42,
+    "deep_epochs": 10,
+    "comparison_strength": "light",
+    "models": [
+      "xgboost"
+    ],
+    "class_names": [
+      "正常",
+      "过干",
+      "过湿"
+    ],
+    "feature_count": 34,
+    "feature_names": [
+      "总阻抗",
+      "平均阻抗",
+      "最高阻抗",
+      "次高阻抗",
+      "最低阻抗",
+      "次低阻抗",
+      "标准差",
+      "EIS电阻实部",
+      "EIS电阻虚部",
+      "电堆总电压",
+      "电堆总电流",
+      "电堆功率",
+      "FC系统入口高压",
+      "进堆氢压",
+      "出堆氢压",
+      "进堆空压",
+      "FC空压机出口压力",
+      "进堆空温",
+      "出堆空温",
+      "进堆水温",
+      "出堆水温",
+      "氢气循环泵FK",
+      "比例阀反馈",
+      "purge时间",
+      "离心机速度FK",
+      "离心机功率",
+      "三通阀开度FK",
+      "高压水泵转速FK",
+      "FC空压机出口温度",
+      "FC换热器入口温度",
+      "氢压差",
+      "空压差",
+      "空温升",
+      "水温升"
+    ],
+    "feature_selection_used": false,
+    "train_samples": 8494,
+    "test_samples": 3641
+  },
+  "results": [
+    {
+      "model": "xgboost",
+      "level": "boosting_baseline",
+      "description": "XGBoost gradient-boosted tree baseline.",
+      "accuracy": 0.9700631694589399,
+      "balanced_accuracy": 0.9560129136400323,
+      "cohen_kappa": 0.9448658666105418,
+      "precision_weighted": 0.9714031110256867,
+      "recall_weighted": 0.9700631694589399,
+      "f1_weighted": 0.9693486070626445,
+      "f1_macro": 0.9678089714190804,
+      "fit_time": 0.0945885181427002,
+      "prediction_time": 0.01419377326965332,
+      "confusion_matrix": [
+        [
+          717,
+          3,
+          106
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          0,
+          0,
+          2204
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 1.0,
+          "recall": 0.8680387409200968,
+          "f1-score": 0.9293583927414129,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 0.995114006514658,
+          "recall": 1.0,
+          "f1-score": 0.9975510204081632,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.9541125541125541,
+          "recall": 1.0,
+          "f1-score": 0.976517501107665,
+          "support": 2204.0
+        },
+        "accuracy": 0.9700631694589399,
+        "macro avg": {
+          "precision": 0.9830755202090707,
+          "recall": 0.9560129136400323,
+          "f1-score": 0.9678089714190804,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9714031110256867,
+          "recall": 0.9700631694589399,
+          "f1-score": 0.9693486070626445,
+          "support": 3641.0
+        }
+      }
+    }
+  ]
+}

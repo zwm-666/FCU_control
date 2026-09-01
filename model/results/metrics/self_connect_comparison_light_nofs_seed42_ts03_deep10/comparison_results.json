@@ -1,0 +1,579 @@
+{
+  "metadata": {
+    "data_path": "D:\\my_project\\h2-fcu-modern-dashboard\\model\\数据文件\\self_connect.xlsx",
+    "label_col": "label",
+    "test_size": 0.3,
+    "seed": 42,
+    "deep_epochs": 10,
+    "comparison_strength": "light",
+    "models": [
+      "logistic_regression",
+      "decision_tree",
+      "xgboost",
+      "cnn_lstm",
+      "mcnn",
+      "resnet_lstm",
+      "transformer_gru",
+      "cnn_transformer"
+    ],
+    "class_names": [
+      "正常",
+      "过干",
+      "过湿"
+    ],
+    "feature_count": 34,
+    "feature_names": [
+      "总阻抗",
+      "平均阻抗",
+      "最高阻抗",
+      "次高阻抗",
+      "最低阻抗",
+      "次低阻抗",
+      "标准差",
+      "EIS电阻实部",
+      "EIS电阻虚部",
+      "电堆总电压",
+      "电堆总电流",
+      "电堆功率",
+      "FC系统入口高压",
+      "进堆氢压",
+      "出堆氢压",
+      "进堆空压",
+      "FC空压机出口压力",
+      "进堆空温",
+      "出堆空温",
+      "进堆水温",
+      "出堆水温",
+      "氢气循环泵FK",
+      "比例阀反馈",
+      "purge时间",
+      "离心机速度FK",
+      "离心机功率",
+      "三通阀开度FK",
+      "高压水泵转速FK",
+      "FC空压机出口温度",
+      "FC换热器入口温度",
+      "氢压差",
+      "空压差",
+      "空温升",
+      "水温升"
+    ],
+    "feature_selection_used": false,
+    "train_samples": 8494,
+    "test_samples": 3641
+  },
+  "results": [
+    {
+      "model": "logistic_regression",
+      "level": "simple_traditional",
+      "description": "Linear probabilistic baseline with class balancing.",
+      "accuracy": 0.9991760505355671,
+      "balanced_accuracy": 0.9990416573285933,
+      "cohen_kappa": 0.9985123170019163,
+      "precision_weighted": 0.999175966742177,
+      "recall_weighted": 0.9991760505355671,
+      "f1_weighted": 0.9991758944446365,
+      "f1_macro": 0.9991674976807392,
+      "fit_time": 0.09119606018066406,
+      "prediction_time": 0.0016264915466308594,
+      "confusion_matrix": [
+        [
+          824,
+          0,
+          2
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          1,
+          0,
+          2203
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 0.9987878787878788,
+          "recall": 0.9975786924939467,
+          "f1-score": 0.9981829194427619,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.999092970521542,
+          "recall": 0.9995462794918331,
+          "f1-score": 0.9993195735994557,
+          "support": 2204.0
+        },
+        "accuracy": 0.9991760505355671,
+        "macro avg": {
+          "precision": 0.9992936164364736,
+          "recall": 0.9990416573285933,
+          "f1-score": 0.9991674976807392,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.999175966742177,
+          "recall": 0.9991760505355671,
+          "f1-score": 0.9991758944446365,
+          "support": 3641.0
+        }
+      }
+    },
+    {
+      "model": "decision_tree",
+      "level": "simple_traditional",
+      "description": "Interpretable single-tree nonlinear baseline.",
+      "accuracy": 0.9868168085690744,
+      "balanced_accuracy": 0.9846665172574921,
+      "cohen_kappa": 0.9761298728969818,
+      "precision_weighted": 0.9867933483240635,
+      "recall_weighted": 0.9868168085690744,
+      "f1_weighted": 0.9867761824911472,
+      "f1_macro": 0.9866034123717267,
+      "fit_time": 0.043013572692871094,
+      "prediction_time": 0.0021834373474121094,
+      "confusion_matrix": [
+        [
+          794,
+          0,
+          32
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          16,
+          0,
+          2188
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 0.980246913580247,
+          "recall": 0.9612590799031477,
+          "f1-score": 0.9706601466992665,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.9855855855855856,
+          "recall": 0.9927404718693285,
+          "f1-score": 0.9891500904159132,
+          "support": 2204.0
+        },
+        "accuracy": 0.9868168085690744,
+        "macro avg": {
+          "precision": 0.9886108330552775,
+          "recall": 0.9846665172574921,
+          "f1-score": 0.9866034123717267,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9867933483240635,
+          "recall": 0.9868168085690744,
+          "f1-score": 0.9867761824911472,
+          "support": 3641.0
+        }
+      }
+    },
+    {
+      "model": "xgboost",
+      "level": "boosting_baseline",
+      "description": "XGBoost gradient-boosted tree baseline.",
+      "accuracy": 0.9700631694589399,
+      "balanced_accuracy": 0.9560129136400323,
+      "cohen_kappa": 0.9448658666105418,
+      "precision_weighted": 0.9714031110256867,
+      "recall_weighted": 0.9700631694589399,
+      "f1_weighted": 0.9693486070626445,
+      "f1_macro": 0.9678089714190804,
+      "fit_time": 0.20973992347717285,
+      "prediction_time": 0.0033168792724609375,
+      "confusion_matrix": [
+        [
+          717,
+          3,
+          106
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          0,
+          0,
+          2204
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 1.0,
+          "recall": 0.8680387409200968,
+          "f1-score": 0.9293583927414129,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 0.995114006514658,
+          "recall": 1.0,
+          "f1-score": 0.9975510204081632,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.9541125541125541,
+          "recall": 1.0,
+          "f1-score": 0.976517501107665,
+          "support": 2204.0
+        },
+        "accuracy": 0.9700631694589399,
+        "macro avg": {
+          "precision": 0.9830755202090707,
+          "recall": 0.9560129136400323,
+          "f1-score": 0.9678089714190804,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9714031110256867,
+          "recall": 0.9700631694589399,
+          "f1-score": 0.9693486070626445,
+          "support": 3641.0
+        }
+      }
+    },
+    {
+      "model": "cnn_lstm",
+      "level": "deep_joint",
+      "description": "CNN-LSTM hybrid over ordered feature sequences.",
+      "accuracy": 0.9989014007140895,
+      "balanced_accuracy": 0.9986381060775843,
+      "cohen_kappa": 0.9980160503218128,
+      "precision_weighted": 0.9989014810959832,
+      "recall_weighted": 0.9989014007140895,
+      "f1_weighted": 0.9989009840118249,
+      "f1_macro": 0.9988895760324331,
+      "fit_time": 49.57965445518494,
+      "prediction_time": 1.2168900966644287,
+      "confusion_matrix": [
+        [
+          823,
+          0,
+          3
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          1,
+          0,
+          2203
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 0.9987864077669902,
+          "recall": 0.9963680387409201,
+          "f1-score": 0.9975757575757576,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.9986400725294651,
+          "recall": 0.9995462794918331,
+          "f1-score": 0.999092970521542,
+          "support": 2204.0
+        },
+        "accuracy": 0.9989014007140895,
+        "macro avg": {
+          "precision": 0.9991421600988185,
+          "recall": 0.9986381060775843,
+          "f1-score": 0.9988895760324331,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9989014810959832,
+          "recall": 0.9989014007140895,
+          "f1-score": 0.9989009840118249,
+          "support": 3641.0
+        }
+      }
+    },
+    {
+      "model": "mcnn",
+      "level": "deep_joint",
+      "description": "Multi-scale CNN over ordered feature sequences.",
+      "accuracy": 0.9975281516067015,
+      "balanced_accuracy": 0.9973772830673996,
+      "cohen_kappa": 0.9955369510057489,
+      "precision_weighted": 0.9975274427599141,
+      "recall_weighted": 0.9975281516067015,
+      "f1_weighted": 0.9975276833339096,
+      "f1_macro": 0.9975024930422176,
+      "fit_time": 24.0424485206604,
+      "prediction_time": 1.043212652206421,
+      "confusion_matrix": [
+        [
+          821,
+          0,
+          5
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          4,
+          0,
+          2200
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 0.9951515151515151,
+          "recall": 0.9939467312348669,
+          "f1-score": 0.9945487583282859,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.9977324263038548,
+          "recall": 0.9981851179673321,
+          "f1-score": 0.997958720798367,
+          "support": 2204.0
+        },
+        "accuracy": 0.9975281516067015,
+        "macro avg": {
+          "precision": 0.9976279804851234,
+          "recall": 0.9973772830673996,
+          "f1-score": 0.9975024930422176,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9975274427599141,
+          "recall": 0.9975281516067015,
+          "f1-score": 0.9975276833339096,
+          "support": 3641.0
+        }
+      }
+    },
+    {
+      "model": "resnet_lstm",
+      "level": "deep_joint",
+      "description": "Residual CNN blocks followed by LSTM sequence aggregation.",
+      "accuracy": 0.9994507003570448,
+      "balanced_accuracy": 0.9994452085796022,
+      "cohen_kappa": 0.9990083974384463,
+      "precision_weighted": 0.9994507003570448,
+      "recall_weighted": 0.9994507003570448,
+      "f1_weighted": 0.9994507003570448,
+      "f1_macro": 0.9994452085796022,
+      "fit_time": 57.43953847885132,
+      "prediction_time": 1.981313943862915,
+      "confusion_matrix": [
+        [
+          825,
+          0,
+          1
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          1,
+          0,
+          2203
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 0.9987893462469734,
+          "recall": 0.9987893462469734,
+          "f1-score": 0.9987893462469734,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.9995462794918331,
+          "recall": 0.9995462794918331,
+          "f1-score": 0.9995462794918331,
+          "support": 2204.0
+        },
+        "accuracy": 0.9994507003570448,
+        "macro avg": {
+          "precision": 0.9994452085796022,
+          "recall": 0.9994452085796022,
+          "f1-score": 0.9994452085796022,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9994507003570448,
+          "recall": 0.9994507003570448,
+          "f1-score": 0.9994507003570448,
+          "support": 3641.0
+        }
+      }
+    },
+    {
+      "model": "transformer_gru",
+      "level": "deep_joint",
+      "description": "Transformer self-attention encoder followed by GRU aggregation.",
+      "accuracy": 0.9967042021422686,
+      "balanced_accuracy": 0.9954096960695132,
+      "cohen_kappa": 0.9940391995075505,
+      "precision_weighted": 0.9967144819907198,
+      "recall_weighted": 0.9967042021422686,
+      "f1_weighted": 0.9966978961828885,
+      "f1_macro": 0.9966585593538558,
+      "fit_time": 51.6312530040741,
+      "prediction_time": 1.9371366500854492,
+      "confusion_matrix": [
+        [
+          815,
+          0,
+          11
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          1,
+          0,
+          2203
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 0.9987745098039216,
+          "recall": 0.986682808716707,
+          "f1-score": 0.9926918392204629,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.9950316169828365,
+          "recall": 0.9995462794918331,
+          "f1-score": 0.9972838388411046,
+          "support": 2204.0
+        },
+        "accuracy": 0.9967042021422686,
+        "macro avg": {
+          "precision": 0.9979353755955861,
+          "recall": 0.9954096960695132,
+          "f1-score": 0.9966585593538558,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9967144819907198,
+          "recall": 0.9967042021422686,
+          "f1-score": 0.9966978961828885,
+          "support": 3641.0
+        }
+      }
+    },
+    {
+      "model": "cnn_transformer",
+      "level": "deep_joint",
+      "description": "CNN local feature extractor followed by Transformer attention.",
+      "accuracy": 0.9994507003570448,
+      "balanced_accuracy": 0.9991928974979821,
+      "cohen_kappa": 0.9990080251609065,
+      "precision_weighted": 0.9994511983621607,
+      "recall_weighted": 0.9994507003570448,
+      "f1_weighted": 0.9994504920059124,
+      "f1_macro": 0.9994447880162166,
+      "fit_time": 33.73656105995178,
+      "prediction_time": 1.4082467555999756,
+      "confusion_matrix": [
+        [
+          824,
+          0,
+          2
+        ],
+        [
+          0,
+          611,
+          0
+        ],
+        [
+          0,
+          0,
+          2204
+        ]
+      ],
+      "classification_report": {
+        "正常": {
+          "precision": 1.0,
+          "recall": 0.9975786924939467,
+          "f1-score": 0.9987878787878788,
+          "support": 826.0
+        },
+        "过干": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 611.0
+        },
+        "过湿": {
+          "precision": 0.99909338168631,
+          "recall": 1.0,
+          "f1-score": 0.999546485260771,
+          "support": 2204.0
+        },
+        "accuracy": 0.9994507003570448,
+        "macro avg": {
+          "precision": 0.9996977938954367,
+          "recall": 0.9991928974979821,
+          "f1-score": 0.9994447880162166,
+          "support": 3641.0
+        },
+        "weighted avg": {
+          "precision": 0.9994511983621607,
+          "recall": 0.9994507003570448,
+          "f1-score": 0.9994504920059124,
+          "support": 3641.0
+        }
+      }
+    }
+  ]
+}

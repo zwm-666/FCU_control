@@ -1,0 +1,17 @@
+{
+  "data": "数据文件/self_connect.xlsx",
+  "prepared_csv": "results/metrics/self_connect_input/self_connect_no_time.csv",
+  "test_size": 0.3,
+  "seed": 42,
+  "proposed_epochs": 30,
+  "comparison_deep_epochs": 10,
+  "comparison_models": "all",
+  "proposed_metrics_dir": "results\\metrics\\self_connect_proposed_raw_seed42_ts03_ep30",
+  "proposed_figures_dir": "results\\figures\\self_connect_proposed_seed42_ts03_ep30",
+  "proposed_model_dir": "results\\models\\self_connect_proposed_seed42_ts03_ep30",
+  "comparison_default_dir": "results/metrics/self_connect_comparison_default_seed42_ts03_deep30",
+  "comparison_all_dir": "results\\metrics\\self_connect_comparison_light_nofs_seed42_ts03_deep10",
+  "summary_csv": "results\\metrics\\self_connect_summary_seed42_ts03_ep30.csv",
+  "comparison_strength": "light",
+  "comparison_feature_selection": "disabled"
+}

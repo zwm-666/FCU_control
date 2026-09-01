@@ -1,0 +1,903 @@
+{
+  "metadata": {
+    "data_path": "D:\\my_project\\h2-fcu-modern-dashboard\\model\\数据文件\\自测原数据\\测试数据.csv",
+    "label_col": "类型",
+    "test_size": 0.2,
+    "seed": 42,
+    "deep_epochs": 1,
+    "comparison_strength": "light",
+    "models": [
+      "svm",
+      "random_forest",
+      "xgboost",
+      "lightgbm",
+      "mlp",
+      "bigru",
+      "tcn",
+      "transformer",
+      "di_emstgat",
+      "ab_emstgat"
+    ],
+    "class_names": [
+      "0",
+      "1",
+      "2"
+    ],
+    "feature_count": 228,
+    "feature_names": [
+      "总阻抗",
+      "平均阻抗",
+      "最高阻抗",
+      "次高阻抗",
+      "最低阻抗",
+      "次低阻抗",
+      "标准差",
+      "EIS电阻实部",
+      "EIS电阻虚部",
+      "单片1",
+      "单片2",
+      "单片3",
+      "单片4",
+      "单片5",
+      "单片6",
+      "单片7",
+      "单片8",
+      "单片9",
+      "单片10",
+      "单片11",
+      "单片12",
+      "单片13",
+      "单片14",
+      "单片15",
+      "单片16",
+      "单片17",
+      "单片18",
+      "单片19",
+      "单片20",
+      "单片21",
+      "单片22",
+      "单片23",
+      "单片24",
+      "单片25",
+      "单片26",
+      "单片27",
+      "单片28",
+      "单片29",
+      "单片30",
+      "单片31",
+      "单片32",
+      "单片33",
+      "单片34",
+      "单片35",
+      "单片36",
+      "单片37",
+      "单片38",
+      "单片39",
+      "单片40",
+      "单片41",
+      "单片42",
+      "单片43",
+      "单片44",
+      "单片45",
+      "单片46",
+      "单片47",
+      "单片48",
+      "单片49",
+      "单片50",
+      "单片51",
+      "单片52",
+      "单片53",
+      "单片54",
+      "单片55",
+      "单片56",
+      "单片57",
+      "单片58",
+      "单片59",
+      "单片60",
+      "单片61",
+      "单片62",
+      "单片63",
+      "单片64",
+      "单片65",
+      "单片66",
+      "单片67",
+      "单片68",
+      "单片69",
+      "单片70",
+      "单片71",
+      "单片72",
+      "单片73",
+      "单片74",
+      "单片75",
+      "单片76",
+      "单片77",
+      "单片78",
+      "单片79",
+      "单片80",
+      "单片81",
+      "单片82",
+      "单片83",
+      "单片84",
+      "单片85",
+      "单片86",
+      "单片87",
+      "单片88",
+      "单片89",
+      "单片90",
+      "单片91",
+      "单片92",
+      "单片93",
+      "单片94",
+      "单片95",
+      "单片96",
+      "单片97",
+      "单片98",
+      "单片99",
+      "单片100",
+      "单片101",
+      "单片102",
+      "单片103",
+      "单片104",
+      "单片105",
+      "单片106",
+      "单片107",
+      "单片108",
+      "单片109",
+      "单片110",
+      "单片111",
+      "单片112",
+      "单片113",
+      "单片114",
+      "单片115",
+      "单片116",
+      "单片117",
+      "单片118",
+      "单片119",
+      "单片120",
+      "单片121",
+      "单片122",
+      "单片123",
+      "单片124",
+      "单片125",
+      "单片126",
+      "单片127",
+      "单片128",
+      "单片129",
+      "单片130",
+      "单片131",
+      "单片132",
+      "单片133",
+      "单片134",
+      "单片135",
+      "单片136",
+      "单片137",
+      "单片138",
+      "单片139",
+      "单片140",
+      "单片141",
+      "单片142",
+      "单片143",
+      "单片144",
+      "单片145",
+      "单片146",
+      "单片147",
+      "单片148",
+      "单片149",
+      "单片150",
+      "单片151",
+      "单片152",
+      "单片153",
+      "单片154",
+      "单片155",
+      "单片156",
+      "单片157",
+      "单片158",
+      "单片159",
+      "单片160",
+      "单片161",
+      "单片162",
+      "单片163",
+      "单片164",
+      "单片165",
+      "单片166",
+      "单片167",
+      "单片168",
+      "单片169",
+      "单片170",
+      "单片171",
+      "单片172",
+      "单片173",
+      "单片174",
+      "单片175",
+      "单片176",
+      "单片177",
+      "单片178",
+      "单片179",
+      "单片180",
+      "单片181",
+      "单片182",
+      "单片183",
+      "单片184",
+      "单片185",
+      "单片186",
+      "单片187",
+      "单片188",
+      "单片189",
+      "单片190",
+      "单片191",
+      "单片192",
+      "单片193",
+      "单片194",
+      "单片195",
+      "单片196",
+      "单片197",
+      "单片198",
+      "单片199",
+      "单片200",
+      "单片201",
+      "单片202",
+      "单片203",
+      "单片204",
+      "单片205",
+      "单片206",
+      "单片207",
+      "单片208",
+      "单片209",
+      "单片210",
+      "单片211",
+      "单片212",
+      "单片213",
+      "单片214",
+      "单片215",
+      "单片216",
+      "电堆总电压",
+      "电堆总电流",
+      "电堆功率"
+    ],
+    "feature_selection_used": false,
+    "train_samples": 120,
+    "test_samples": 60
+  },
+  "results": [
+    {
+      "model": "svm",
+      "level": "traditional_baseline",
+      "description": "RBF-SVM baseline with balanced classes.",
+      "accuracy": 0.9166666666666666,
+      "balanced_accuracy": 0.9009259259259258,
+      "cohen_kappa": 0.8359759431383269,
+      "precision_weighted": 0.9208119658119659,
+      "recall_weighted": 0.9166666666666666,
+      "f1_weighted": 0.9183322229624695,
+      "f1_macro": 0.891183655340884,
+      "fit_time": 0.0019998550415039062,
+      "prediction_time": 0.0009996891021728516,
+      "confusion_matrix": [
+        [
+          7,
+          0,
+          2
+        ],
+        [
+          0,
+          11,
+          0
+        ],
+        [
+          3,
+          0,
+          37
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.7,
+          "recall": 0.7777777777777778,
+          "f1-score": 0.7368421052631579,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.9487179487179487,
+          "recall": 0.925,
+          "f1-score": 0.9367088607594937,
+          "support": 40.0
+        },
+        "accuracy": 0.9166666666666666,
+        "macro avg": {
+          "precision": 0.8829059829059829,
+          "recall": 0.9009259259259258,
+          "f1-score": 0.891183655340884,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.9208119658119659,
+          "recall": 0.9166666666666666,
+          "f1-score": 0.9183322229624695,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "random_forest",
+      "level": "traditional_baseline",
+      "description": "Random-forest baseline with balanced classes.",
+      "accuracy": 0.9666666666666667,
+      "balanced_accuracy": 0.9259259259259259,
+      "cohen_kappa": 0.9308755760368663,
+      "precision_weighted": 0.9682539682539683,
+      "recall_weighted": 0.9666666666666667,
+      "f1_weighted": 0.964989837398374,
+      "f1_macro": 0.9502032520325203,
+      "fit_time": 0.3935279846191406,
+      "prediction_time": 0.011522769927978516,
+      "confusion_matrix": [
+        [
+          7,
+          0,
+          2
+        ],
+        [
+          0,
+          11,
+          0
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 1.0,
+          "recall": 0.7777777777777778,
+          "f1-score": 0.875,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.9523809523809523,
+          "recall": 1.0,
+          "f1-score": 0.975609756097561,
+          "support": 40.0
+        },
+        "accuracy": 0.9666666666666667,
+        "macro avg": {
+          "precision": 0.9841269841269842,
+          "recall": 0.9259259259259259,
+          "f1-score": 0.9502032520325203,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.9682539682539683,
+          "recall": 0.9666666666666667,
+          "f1-score": 0.964989837398374,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "xgboost",
+      "level": "traditional_baseline",
+      "description": "XGBoost gradient-boosted tree baseline.",
+      "accuracy": 0.6666666666666666,
+      "balanced_accuracy": 0.3333333333333333,
+      "cohen_kappa": 0.0,
+      "precision_weighted": 0.4444444444444444,
+      "recall_weighted": 0.6666666666666666,
+      "f1_weighted": 0.5333333333333333,
+      "f1_macro": 0.26666666666666666,
+      "fit_time": 0.03408002853393555,
+      "prediction_time": 0.001018524169921875,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          9
+        ],
+        [
+          0,
+          0,
+          11
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.6666666666666666,
+          "recall": 1.0,
+          "f1-score": 0.8,
+          "support": 40.0
+        },
+        "accuracy": 0.6666666666666666,
+        "macro avg": {
+          "precision": 0.2222222222222222,
+          "recall": 0.3333333333333333,
+          "f1-score": 0.26666666666666666,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.4444444444444444,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.5333333333333333,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "lightgbm",
+      "level": "traditional_baseline",
+      "description": "LightGBM gradient-boosted tree baseline (RF fallback only if LightGBM is unavailable).",
+      "accuracy": 0.9666666666666667,
+      "balanced_accuracy": 0.9259259259259259,
+      "cohen_kappa": 0.9308755760368663,
+      "precision_weighted": 0.9682539682539683,
+      "recall_weighted": 0.9666666666666667,
+      "f1_weighted": 0.964989837398374,
+      "f1_macro": 0.9502032520325203,
+      "fit_time": 0.550884485244751,
+      "prediction_time": 0.014070987701416016,
+      "confusion_matrix": [
+        [
+          7,
+          0,
+          2
+        ],
+        [
+          0,
+          11,
+          0
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 1.0,
+          "recall": 0.7777777777777778,
+          "f1-score": 0.875,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.9523809523809523,
+          "recall": 1.0,
+          "f1-score": 0.975609756097561,
+          "support": 40.0
+        },
+        "accuracy": 0.9666666666666667,
+        "macro avg": {
+          "precision": 0.9841269841269842,
+          "recall": 0.9259259259259259,
+          "f1-score": 0.9502032520325203,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.9682539682539683,
+          "recall": 0.9666666666666667,
+          "f1-score": 0.964989837398374,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "mlp",
+      "level": "deep_baseline",
+      "description": "MLP baseline with validation early stopping.",
+      "accuracy": 0.8666666666666667,
+      "balanced_accuracy": 0.7104377104377105,
+      "cohen_kappa": 0.6963946869070209,
+      "precision_weighted": 0.8840425531914894,
+      "recall_weighted": 0.8666666666666667,
+      "f1_weighted": 0.8342389411354928,
+      "f1_macro": 0.73075583420411,
+      "fit_time": 0.02640843391418457,
+      "prediction_time": 0.0,
+      "confusion_matrix": [
+        [
+          2,
+          1,
+          6
+        ],
+        [
+          0,
+          10,
+          1
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 1.0,
+          "recall": 0.2222222222222222,
+          "f1-score": 0.36363636363636365,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 0.9090909090909091,
+          "recall": 0.9090909090909091,
+          "f1-score": 0.9090909090909091,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.851063829787234,
+          "recall": 1.0,
+          "f1-score": 0.9195402298850575,
+          "support": 40.0
+        },
+        "accuracy": 0.8666666666666667,
+        "macro avg": {
+          "precision": 0.9200515796260477,
+          "recall": 0.7104377104377105,
+          "f1-score": 0.73075583420411,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.8840425531914894,
+          "recall": 0.8666666666666667,
+          "f1-score": 0.8342389411354928,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "bigru",
+      "level": "deep_baseline",
+      "description": "Bidirectional-GRU sequence baseline.",
+      "accuracy": 0.85,
+      "balanced_accuracy": 0.6801346801346803,
+      "cohen_kappa": 0.6593059936908517,
+      "precision_weighted": 0.825709219858156,
+      "recall_weighted": 0.85,
+      "f1_weighted": 0.8241806660772177,
+      "f1_macro": 0.7090775125257883,
+      "fit_time": 12.35327672958374,
+      "prediction_time": 1.1151010990142822,
+      "confusion_matrix": [
+        [
+          2,
+          0,
+          7
+        ],
+        [
+          2,
+          9,
+          0
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.5,
+          "recall": 0.2222222222222222,
+          "f1-score": 0.3076923076923077,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 0.8181818181818182,
+          "f1-score": 0.9,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.851063829787234,
+          "recall": 1.0,
+          "f1-score": 0.9195402298850575,
+          "support": 40.0
+        },
+        "accuracy": 0.85,
+        "macro avg": {
+          "precision": 0.7836879432624113,
+          "recall": 0.6801346801346803,
+          "f1-score": 0.7090775125257883,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.825709219858156,
+          "recall": 0.85,
+          "f1-score": 0.8241806660772177,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "tcn",
+      "level": "deep_baseline",
+      "description": "Temporal convolutional network baseline.",
+      "accuracy": 0.85,
+      "balanced_accuracy": 0.6666666666666666,
+      "cohen_kappa": 0.6445029624753127,
+      "precision_weighted": 0.7275510204081633,
+      "recall_weighted": 0.85,
+      "f1_weighted": 0.7825842696629214,
+      "f1_macro": 0.6329588014981273,
+      "fit_time": 2.8746018409729004,
+      "prediction_time": 0.4223320484161377,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          9
+        ],
+        [
+          0,
+          11,
+          0
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.8163265306122449,
+          "recall": 1.0,
+          "f1-score": 0.898876404494382,
+          "support": 40.0
+        },
+        "accuracy": 0.85,
+        "macro avg": {
+          "precision": 0.6054421768707483,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.6329588014981273,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.7275510204081633,
+          "recall": 0.85,
+          "f1-score": 0.7825842696629214,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "transformer",
+      "level": "deep_baseline",
+      "description": "Transformer encoder baseline.",
+      "accuracy": 0.85,
+      "balanced_accuracy": 0.6666666666666666,
+      "cohen_kappa": 0.6445029624753127,
+      "precision_weighted": 0.7275510204081633,
+      "recall_weighted": 0.85,
+      "f1_weighted": 0.7825842696629214,
+      "f1_macro": 0.6329588014981273,
+      "fit_time": 5.114274263381958,
+      "prediction_time": 0.4158451557159424,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          9
+        ],
+        [
+          0,
+          11,
+          0
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.8163265306122449,
+          "recall": 1.0,
+          "f1-score": 0.898876404494382,
+          "support": 40.0
+        },
+        "accuracy": 0.85,
+        "macro avg": {
+          "precision": 0.6054421768707483,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.6329588014981273,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.7275510204081633,
+          "recall": 0.85,
+          "f1-score": 0.7825842696629214,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "di_emstgat",
+      "level": "proposed_direct_input",
+      "description": "Direct-Input EMSTGAT: all features enter one shared encoder.",
+      "accuracy": 0.75,
+      "balanced_accuracy": 0.48484848484848486,
+      "cohen_kappa": 0.33085501858736066,
+      "precision_weighted": 0.6681818181818182,
+      "recall_weighted": 0.75,
+      "f1_weighted": 0.6759868421052632,
+      "f1_macro": 0.4890350877192982,
+      "fit_time": 14.657304048538208,
+      "prediction_time": 1.9242398738861084,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          9
+        ],
+        [
+          0,
+          5,
+          6
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 0.45454545454545453,
+          "f1-score": 0.625,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.7272727272727273,
+          "recall": 1.0,
+          "f1-score": 0.8421052631578947,
+          "support": 40.0
+        },
+        "accuracy": 0.75,
+        "macro avg": {
+          "precision": 0.5757575757575758,
+          "recall": 0.48484848484848486,
+          "f1-score": 0.4890350877192982,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.6681818181818182,
+          "recall": 0.75,
+          "f1-score": 0.6759868421052632,
+          "support": 60.0
+        }
+      }
+    },
+    {
+      "model": "ab_emstgat",
+      "level": "proposed_adaptive_branch",
+      "description": "Adaptive-Branch EMSTGAT: learned soft feature-to-branch routing.",
+      "accuracy": 0.85,
+      "balanced_accuracy": 0.6666666666666666,
+      "cohen_kappa": 0.6575776791376031,
+      "precision_weighted": 0.7225040916530278,
+      "recall_weighted": 0.85,
+      "f1_weighted": 0.7810823754789271,
+      "f1_macro": 0.6120689655172414,
+      "fit_time": 17.72297430038452,
+      "prediction_time": 2.134546995162964,
+      "confusion_matrix": [
+        [
+          0,
+          2,
+          7
+        ],
+        [
+          0,
+          11,
+          0
+        ],
+        [
+          0,
+          0,
+          40
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 9.0
+        },
+        "1": {
+          "precision": 0.8461538461538461,
+          "recall": 1.0,
+          "f1-score": 0.9166666666666666,
+          "support": 11.0
+        },
+        "2": {
+          "precision": 0.851063829787234,
+          "recall": 1.0,
+          "f1-score": 0.9195402298850575,
+          "support": 40.0
+        },
+        "accuracy": 0.85,
+        "macro avg": {
+          "precision": 0.5657392253136934,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.6120689655172414,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.7225040916530278,
+          "recall": 0.85,
+          "f1-score": 0.7810823754789271,
+          "support": 60.0
+        }
+      }
+    }
+  ]
+}

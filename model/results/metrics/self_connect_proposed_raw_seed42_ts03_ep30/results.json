@@ -1,0 +1,27 @@
+{
+  "accuracy": 0.9997253501785224,
+  "precision": 0.9997256822822969,
+  "recall": 0.9997253501785224,
+  "f1_score": 0.9997254020940601,
+  "prediction_time": 6.334608793258667,
+  "best_params": {
+    "learning_rate": 0.0008127349453725082,
+    "weight_decay": 0.00042655193657822774,
+    "hidden_units": 192,
+    "attention_heads": 16,
+    "max_sequence_length": 15,
+    "knn_top_k": 6,
+    "dropout_rate": 0.20559374642540468,
+    "initial_noise_factor": 0.024223792861225474,
+    "dilation_rate": 4,
+    "use_batch_norm": false,
+    "embedding_dim": 160
+  },
+  "gpu_info": {
+    "gpus_available": [],
+    "mixed_precision": false,
+    "xla_enabled": false,
+    "memory_growth": false
+  },
+  "training_time": 751.3717176914215
+}

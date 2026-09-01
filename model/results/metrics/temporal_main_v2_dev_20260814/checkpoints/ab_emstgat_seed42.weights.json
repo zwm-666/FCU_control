@@ -1,0 +1,18 @@
+{
+  "model_kind": "ab_emstgat",
+  "epochs": 60,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "validation_split": 0.0,
+  "patience": 5,
+  "seed": 42,
+  "class_weight": "balanced",
+  "capacity": "standard",
+  "input_dim": 228,
+  "classes": [
+    0,
+    1,
+    2
+  ],
+  "backend": "keras"
+}

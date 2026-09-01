@@ -1,0 +1,636 @@
+{
+  "metadata": {
+    "data_path": "数据文件\\测试数据.csv",
+    "label_col": "类型",
+    "test_size": 0.2,
+    "seed": 42,
+    "deep_epochs": 1,
+    "models": [
+      "xgboost",
+      "cnn_lstm",
+      "mcnn",
+      "resnet_lstm",
+      "transformer_gru",
+      "cnn_transformer"
+    ],
+    "class_names": [
+      "0",
+      "1",
+      "2"
+    ],
+    "feature_count": 228,
+    "feature_names": [
+      "总阻抗",
+      "平均阻抗",
+      "最高阻抗",
+      "次高阻抗",
+      "最低阻抗",
+      "次低阻抗",
+      "标准差",
+      "EIS电阻实部",
+      "EIS电阻虚部",
+      "单片1",
+      "单片2",
+      "单片3",
+      "单片4",
+      "单片5",
+      "单片6",
+      "单片7",
+      "单片8",
+      "单片9",
+      "单片10",
+      "单片11",
+      "单片12",
+      "单片13",
+      "单片14",
+      "单片15",
+      "单片16",
+      "单片17",
+      "单片18",
+      "单片19",
+      "单片20",
+      "单片21",
+      "单片22",
+      "单片23",
+      "单片24",
+      "单片25",
+      "单片26",
+      "单片27",
+      "单片28",
+      "单片29",
+      "单片30",
+      "单片31",
+      "单片32",
+      "单片33",
+      "单片34",
+      "单片35",
+      "单片36",
+      "单片37",
+      "单片38",
+      "单片39",
+      "单片40",
+      "单片41",
+      "单片42",
+      "单片43",
+      "单片44",
+      "单片45",
+      "单片46",
+      "单片47",
+      "单片48",
+      "单片49",
+      "单片50",
+      "单片51",
+      "单片52",
+      "单片53",
+      "单片54",
+      "单片55",
+      "单片56",
+      "单片57",
+      "单片58",
+      "单片59",
+      "单片60",
+      "单片61",
+      "单片62",
+      "单片63",
+      "单片64",
+      "单片65",
+      "单片66",
+      "单片67",
+      "单片68",
+      "单片69",
+      "单片70",
+      "单片71",
+      "单片72",
+      "单片73",
+      "单片74",
+      "单片75",
+      "单片76",
+      "单片77",
+      "单片78",
+      "单片79",
+      "单片80",
+      "单片81",
+      "单片82",
+      "单片83",
+      "单片84",
+      "单片85",
+      "单片86",
+      "单片87",
+      "单片88",
+      "单片89",
+      "单片90",
+      "单片91",
+      "单片92",
+      "单片93",
+      "单片94",
+      "单片95",
+      "单片96",
+      "单片97",
+      "单片98",
+      "单片99",
+      "单片100",
+      "单片101",
+      "单片102",
+      "单片103",
+      "单片104",
+      "单片105",
+      "单片106",
+      "单片107",
+      "单片108",
+      "单片109",
+      "单片110",
+      "单片111",
+      "单片112",
+      "单片113",
+      "单片114",
+      "单片115",
+      "单片116",
+      "单片117",
+      "单片118",
+      "单片119",
+      "单片120",
+      "单片121",
+      "单片122",
+      "单片123",
+      "单片124",
+      "单片125",
+      "单片126",
+      "单片127",
+      "单片128",
+      "单片129",
+      "单片130",
+      "单片131",
+      "单片132",
+      "单片133",
+      "单片134",
+      "单片135",
+      "单片136",
+      "单片137",
+      "单片138",
+      "单片139",
+      "单片140",
+      "单片141",
+      "单片142",
+      "单片143",
+      "单片144",
+      "单片145",
+      "单片146",
+      "单片147",
+      "单片148",
+      "单片149",
+      "单片150",
+      "单片151",
+      "单片152",
+      "单片153",
+      "单片154",
+      "单片155",
+      "单片156",
+      "单片157",
+      "单片158",
+      "单片159",
+      "单片160",
+      "单片161",
+      "单片162",
+      "单片163",
+      "单片164",
+      "单片165",
+      "单片166",
+      "单片167",
+      "单片168",
+      "单片169",
+      "单片170",
+      "单片171",
+      "单片172",
+      "单片173",
+      "单片174",
+      "单片175",
+      "单片176",
+      "单片177",
+      "单片178",
+      "单片179",
+      "单片180",
+      "单片181",
+      "单片182",
+      "单片183",
+      "单片184",
+      "单片185",
+      "单片186",
+      "单片187",
+      "单片188",
+      "单片189",
+      "单片190",
+      "单片191",
+      "单片192",
+      "单片193",
+      "单片194",
+      "单片195",
+      "单片196",
+      "单片197",
+      "单片198",
+      "单片199",
+      "单片200",
+      "单片201",
+      "单片202",
+      "单片203",
+      "单片204",
+      "单片205",
+      "单片206",
+      "单片207",
+      "单片208",
+      "单片209",
+      "单片210",
+      "单片211",
+      "单片212",
+      "单片213",
+      "单片214",
+      "单片215",
+      "单片216",
+      "电堆总电压",
+      "电堆总电流",
+      "电堆功率"
+    ],
+    "feature_selection_used": false,
+    "train_samples": 60,
+    "test_samples": 30
+  },
+  "results": [
+    {
+      "model": "xgboost",
+      "level": "boosting_baseline",
+      "description": "XGBoost gradient-boosted tree baseline.",
+      "accuracy": 0.9666666666666667,
+      "balanced_accuracy": 0.9833333333333334,
+      "precision_weighted": 0.9722222222222222,
+      "recall_weighted": 0.9666666666666667,
+      "f1_weighted": 0.9677544677544676,
+      "f1_macro": 0.9611499611499612,
+      "fit_time": 39.92676115036011,
+      "prediction_time": 0.04455113410949707,
+      "confusion_matrix": [
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          1,
+          0,
+          19
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1-score": 0.9090909090909091,
+          "support": 5.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 5.0
+        },
+        "2": {
+          "precision": 1.0,
+          "recall": 0.95,
+          "f1-score": 0.9743589743589743,
+          "support": 20.0
+        },
+        "accuracy": 0.9666666666666667,
+        "macro avg": {
+          "precision": 0.9444444444444445,
+          "recall": 0.9833333333333334,
+          "f1-score": 0.9611499611499612,
+          "support": 30.0
+        },
+        "weighted avg": {
+          "precision": 0.9722222222222222,
+          "recall": 0.9666666666666667,
+          "f1-score": 0.9677544677544676,
+          "support": 30.0
+        }
+      }
+    },
+    {
+      "model": "cnn_lstm",
+      "level": "deep_joint",
+      "description": "CNN-LSTM hybrid over ordered feature sequences.",
+      "accuracy": 0.8333333333333334,
+      "balanced_accuracy": 0.6666666666666666,
+      "precision_weighted": 0.7,
+      "recall_weighted": 0.8333333333333334,
+      "f1_weighted": 0.7592592592592593,
+      "f1_macro": 0.6296296296296297,
+      "fit_time": 17.275445222854614,
+      "prediction_time": 0.5202159881591797,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          0,
+          0,
+          20
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 5.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 5.0
+        },
+        "2": {
+          "precision": 0.8,
+          "recall": 1.0,
+          "f1-score": 0.8888888888888888,
+          "support": 20.0
+        },
+        "accuracy": 0.8333333333333334,
+        "macro avg": {
+          "precision": 0.6,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.6296296296296297,
+          "support": 30.0
+        },
+        "weighted avg": {
+          "precision": 0.7,
+          "recall": 0.8333333333333334,
+          "f1-score": 0.7592592592592593,
+          "support": 30.0
+        }
+      }
+    },
+    {
+      "model": "mcnn",
+      "level": "deep_joint",
+      "description": "Multi-scale CNN over ordered feature sequences.",
+      "accuracy": 0.8333333333333334,
+      "balanced_accuracy": 0.6666666666666666,
+      "precision_weighted": 0.7,
+      "recall_weighted": 0.8333333333333334,
+      "f1_weighted": 0.7592592592592593,
+      "f1_macro": 0.6296296296296297,
+      "fit_time": 8.078815221786499,
+      "prediction_time": 0.39599084854125977,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          0,
+          0,
+          20
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 5.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 5.0
+        },
+        "2": {
+          "precision": 0.8,
+          "recall": 1.0,
+          "f1-score": 0.8888888888888888,
+          "support": 20.0
+        },
+        "accuracy": 0.8333333333333334,
+        "macro avg": {
+          "precision": 0.6,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.6296296296296297,
+          "support": 30.0
+        },
+        "weighted avg": {
+          "precision": 0.7,
+          "recall": 0.8333333333333334,
+          "f1-score": 0.7592592592592593,
+          "support": 30.0
+        }
+      }
+    },
+    {
+      "model": "resnet_lstm",
+      "level": "deep_joint",
+      "description": "Residual CNN blocks followed by LSTM sequence aggregation.",
+      "accuracy": 0.6666666666666666,
+      "balanced_accuracy": 0.3333333333333333,
+      "precision_weighted": 0.4761904761904762,
+      "recall_weighted": 0.6666666666666666,
+      "f1_weighted": 0.5555555555555556,
+      "f1_macro": 0.2777777777777778,
+      "fit_time": 8.879819631576538,
+      "prediction_time": 0.5605475902557373,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          20
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 5.0
+        },
+        "1": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 5.0
+        },
+        "2": {
+          "precision": 0.7142857142857143,
+          "recall": 1.0,
+          "f1-score": 0.8333333333333334,
+          "support": 20.0
+        },
+        "accuracy": 0.6666666666666666,
+        "macro avg": {
+          "precision": 0.2380952380952381,
+          "recall": 0.3333333333333333,
+          "f1-score": 0.2777777777777778,
+          "support": 30.0
+        },
+        "weighted avg": {
+          "precision": 0.4761904761904762,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.5555555555555556,
+          "support": 30.0
+        }
+      }
+    },
+    {
+      "model": "transformer_gru",
+      "level": "deep_joint",
+      "description": "Transformer self-attention encoder followed by GRU aggregation.",
+      "accuracy": 0.8666666666666667,
+      "balanced_accuracy": 0.7833333333333332,
+      "precision_weighted": 0.8535353535353535,
+      "recall_weighted": 0.8666666666666667,
+      "f1_weighted": 0.8531746031746031,
+      "f1_macro": 0.8015873015873015,
+      "fit_time": 7.325205087661743,
+      "prediction_time": 0.5367686748504639,
+      "confusion_matrix": [
+        [
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          1,
+          0,
+          19
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.6666666666666666,
+          "recall": 0.4,
+          "f1-score": 0.5,
+          "support": 5.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 5.0
+        },
+        "2": {
+          "precision": 0.8636363636363636,
+          "recall": 0.95,
+          "f1-score": 0.9047619047619048,
+          "support": 20.0
+        },
+        "accuracy": 0.8666666666666667,
+        "macro avg": {
+          "precision": 0.8434343434343434,
+          "recall": 0.7833333333333332,
+          "f1-score": 0.8015873015873015,
+          "support": 30.0
+        },
+        "weighted avg": {
+          "precision": 0.8535353535353535,
+          "recall": 0.8666666666666667,
+          "f1-score": 0.8531746031746031,
+          "support": 30.0
+        }
+      }
+    },
+    {
+      "model": "cnn_transformer",
+      "level": "deep_joint",
+      "description": "CNN local feature extractor followed by Transformer attention.",
+      "accuracy": 0.8333333333333334,
+      "balanced_accuracy": 0.6666666666666666,
+      "precision_weighted": 0.7,
+      "recall_weighted": 0.8333333333333334,
+      "f1_weighted": 0.7592592592592593,
+      "f1_macro": 0.6296296296296297,
+      "fit_time": 5.805327415466309,
+      "prediction_time": 0.355288028717041,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          0,
+          0,
+          20
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 5.0
+        },
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 5.0
+        },
+        "2": {
+          "precision": 0.8,
+          "recall": 1.0,
+          "f1-score": 0.8888888888888888,
+          "support": 20.0
+        },
+        "accuracy": 0.8333333333333334,
+        "macro avg": {
+          "precision": 0.6,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.6296296296296297,
+          "support": 30.0
+        },
+        "weighted avg": {
+          "precision": 0.7,
+          "recall": 0.8333333333333334,
+          "f1-score": 0.7592592592592593,
+          "support": 30.0
+        }
+      }
+    }
+  ]
+}
