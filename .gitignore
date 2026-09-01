@@ -1,1 +1,33 @@
+# Node
 node_modules
+dist
+dist-ssr
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+.venv-*/
+venv/
+.env
+
+# Claude Code 临时工作区（历史遗留副本，勿再入库）
+.claude/worktrees/
+**/.claude/worktrees/
+
+# Office 锁文件
+~$*
+
+# 编辑器 / 系统
+.idea
+.DS_Store
+Thumbs.db
+*.sw?
+
+# 单元测试与中间实验产物：本地保留，不入版本控制
+model/tests/
+model/results/studies/
+model/results/derived_superseded/
