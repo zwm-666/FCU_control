@@ -24,6 +24,7 @@ import tensorflow as tf
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import (
     accuracy_score,
+    cohen_kappa_score,
     confusion_matrix,
     f1_score,
     precision_score,
@@ -35,6 +36,16 @@ from tensorflow.keras import Model, layers
 from tensorflow.keras import backend as K
 from tensorflow.keras.layers import Dense, RepeatVector
 
+from core.preprocess_utils import (
+    prepare_training_dataframe,
+    save_preprocess_meta,
+    train_preprocess_and_select,
+    train_preprocess_and_select_from_df,
+)
+from scripts.paper_figure_artifacts import (
+    build_training_figure_artifacts,
+    save_training_figure_artifacts,
+)
 
 # ================== 日志配置 ==================
 logging.basicConfig(
@@ -971,631 +982,29 @@ def _ensure_current_columns_selected(
     )
 
 
-
-# ================== EIS 统计特征（9 个固定特征用于 EIS 模式训练）==================
-EIS_STAT_FEATURES = [
-    "总阻抗",
-    "平均阻抗",
-    "最高阻抗",
-    "次高阻抗",
-    "最低阻抗",
-    "次低阻抗",
-    "标准差",
-    "EIS电阻实部",
-    "EIS电阻虚部",
-]
-
-EIS_LABEL_ALIASES = {
-    "正常": ("正常", "normal", "ok", "healthy", "nominal", "baseline"),
-    "过干": ("过干", "偏干", "干", "dry", "overdry", "too_dry", "dehydrated"),
-    "过湿": ("过湿", "偏湿", "湿", "wet", "overwet", "too_wet", "flooding", "flooded"),
-}
-
-DEFAULT_LABEL_COLUMN_CANDIDATES = (
-    "label",
-    "labels",
-    "state",
-    "status",
-    "condition",
-    "class",
-    "category",
-    "类别",
-    "标签",
-    "状态",
-    "工况",
-)
-
-DEFAULT_SAMPLE_ID_CANDIDATES = (
-    "sample_id",
-    "sampleid",
-    "id",
-    "样本",
-    "样本编号",
-    "测试编号",
-    "编号",
-)
-
-DEFAULT_FREQUENCY_CANDIDATES = ("frequency", "freq", "频率", "hz")
-DEFAULT_ZREAL_CANDIDATES = ("zreal", "zre", "realz", "real", "zr", "阻抗实部", "实部")
-DEFAULT_ZIMAG_CANDIDATES = ("zimag", "zim", "imagz", "imag", "zi", "阻抗虚部", "虚部")
-DEFAULT_PHASE_CANDIDATES = ("phase", "phi", "相位")
-DEFAULT_MODULUS_CANDIDATES = ("modulus", "magnitude", "mag", "absz", "zabs", "模值", "阻抗模值")
-EIS_FEATURE_KEYWORDS = (
-    "阻抗",
-    "zreal",
-    "zimag",
-    "zre",
-    "zim",
-    "realz",
-    "imagz",
-    "实部",
-    "虚部",
-    "phase",
-    "phi",
-    "相位",
-    "modulus",
-    "magnitude",
-    "mag",
-    "absz",
-    "欧姆",
-    "ohmic",
-    "rct",
-    "rs",
-    "warburg",
-    "charge",
-)
-
-try:
-    from preprocess_utils import (
-        prepare_training_dataframe,
-        save_preprocess_meta,
-        train_preprocess_and_select,
-        train_preprocess_and_select_from_df,
-    )
-    PREPROCESS_UTILS_AVAILABLE = True
-    PREPROCESS_UTILS_IMPORT_ERROR = None
-except Exception as exc:
-    prepare_training_dataframe = None
-    save_preprocess_meta = None
-    train_preprocess_and_select = None
-    train_preprocess_and_select_from_df = None
-    PREPROCESS_UTILS_AVAILABLE = False
-    PREPROCESS_UTILS_IMPORT_ERROR = exc
-
-
-def _to_serializable(value: Any) -> Any:
-    """将 numpy / pandas 对象转为可 JSON 序列化格式。"""
-    if isinstance(value, dict):
-        return {str(k): _to_serializable(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_to_serializable(v) for v in value]
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    if isinstance(value, (np.floating, np.integer)):
-        return value.item()
-    if isinstance(value, pd.Series):
-        return value.tolist()
-    if isinstance(value, pd.DataFrame):
-        return value.to_dict(orient="records")
-    return value
-
-
-def persist_preprocess_meta(meta: Dict[str, Any], save_path: str) -> None:
-    """优先使用 preprocess_utils 的保存逻辑，失败时回退到本地 JSON 保存。"""
-    if callable(save_preprocess_meta):
-        try:
-            save_preprocess_meta(meta, save_path)
-            return
-        except Exception as exc:
-            logger.warning(f"预处理元数据保存回退到本地 JSON: {exc}")
-
-    with open(save_path, "w", encoding="utf-8") as f:
-        json.dump(_to_serializable(meta), f, indent=2, ensure_ascii=False)
-
-
-def _match_normalized_column(
-    columns: List[str], candidates: Tuple[str, ...]
-) -> Optional[str]:
-    normalized_candidates = {_normalize_feature_name(item) for item in candidates}
-    for column in columns:
-        if _normalize_feature_name(column) in normalized_candidates:
-            return column
-    for column in columns:
-        normalized = _normalize_feature_name(column)
-        if any(candidate in normalized for candidate in normalized_candidates):
-            return column
-    return None
-
-
-def _infer_label_column(
-    df: pd.DataFrame, label_col: Optional[str] = None
-) -> Optional[str]:
-    if label_col and label_col in df.columns:
-        return label_col
-
-    inferred = _match_normalized_column(df.columns.tolist(), DEFAULT_LABEL_COLUMN_CANDIDATES)
-    if inferred:
-        return inferred
-
-    object_like = [
-        col
-        for col in df.columns
-        if (not pd.api.types.is_numeric_dtype(df[col])) or df[col].nunique(dropna=True) <= 12
-    ]
-    if object_like:
-        return object_like[-1]
-    return None
-
-
-def _canonicalize_label_value(
-    value: Any,
-    label_mapping: Optional[Dict[str, str]] = None,
-) -> str:
-    raw = "" if pd.isna(value) else str(value).strip()
-    if label_mapping is not None:
-        mapped = label_mapping.get(raw)
-        if mapped is not None:
-            raw = str(mapped).strip()
-
-    normalized = _normalize_feature_name(raw)
-    for canonical_label, aliases in EIS_LABEL_ALIASES.items():
-        alias_set = {_normalize_feature_name(alias) for alias in aliases}
-        alias_set.add(_normalize_feature_name(canonical_label))
-        if normalized in alias_set:
-            return canonical_label
-    return raw
-
-
-def _canonicalize_label_series(
-    series: pd.Series,
-    label_mapping: Optional[Dict[str, str]] = None,
-) -> pd.Series:
-    return series.apply(lambda value: _canonicalize_label_value(value, label_mapping))
-
-
-def _format_frequency_token(value: Any) -> str:
-    try:
-        numeric_value = float(value)
-        if np.isfinite(numeric_value):
-            if abs(numeric_value - round(numeric_value)) < 1e-9:
-                return str(int(round(numeric_value)))
-            return f"{numeric_value:.6g}"
-    except Exception:
-        pass
-    token = re.sub(r"[^0-9a-zA-Z_.+-]+", "_", str(value).strip())
-    return token or "unknown"
-
-
-def _auto_detect_eis_long_table_columns(
-    df: pd.DataFrame,
-    label_col: Optional[str] = None,
-    sample_id_col: Optional[str] = None,
-    frequency_col: Optional[str] = None,
-    zreal_col: Optional[str] = None,
-    zimag_col: Optional[str] = None,
-    phase_col: Optional[str] = None,
-    modulus_col: Optional[str] = None,
-) -> Dict[str, Optional[str]]:
-    columns = df.columns.tolist()
-    sample_id_col = sample_id_col or _match_normalized_column(columns, DEFAULT_SAMPLE_ID_CANDIDATES)
-    frequency_col = frequency_col or _match_normalized_column(columns, DEFAULT_FREQUENCY_CANDIDATES)
-    zreal_col = zreal_col or _match_normalized_column(columns, DEFAULT_ZREAL_CANDIDATES)
-    zimag_col = zimag_col or _match_normalized_column(columns, DEFAULT_ZIMAG_CANDIDATES)
-    phase_col = phase_col or _match_normalized_column(columns, DEFAULT_PHASE_CANDIDATES)
-    modulus_col = modulus_col or _match_normalized_column(columns, DEFAULT_MODULUS_CANDIDATES)
-
-    detected = {
-        "sample_id_col": sample_id_col,
-        "frequency_col": frequency_col,
-        "zreal_col": zreal_col,
-        "zimag_col": zimag_col,
-        "phase_col": phase_col,
-        "modulus_col": modulus_col,
-        "label_col": label_col,
-    }
-    return detected
-
-
-def _looks_like_eis_long_table(
-    df: pd.DataFrame,
-    detected_columns: Dict[str, Optional[str]],
-) -> bool:
-    sample_id_col = detected_columns.get("sample_id_col")
-    frequency_col = detected_columns.get("frequency_col")
-    zreal_col = detected_columns.get("zreal_col")
-    zimag_col = detected_columns.get("zimag_col")
-
-    if not (sample_id_col and frequency_col and zreal_col):
-        return False
-
-    if sample_id_col not in df.columns or frequency_col not in df.columns:
-        return False
-
-    repeated_rows = df[sample_id_col].duplicated().any()
-    enough_frequency_points = df[frequency_col].nunique(dropna=True) >= 4
-    numeric_impedance = pd.api.types.is_numeric_dtype(df[zreal_col])
-    if zimag_col and zimag_col in df.columns:
-        numeric_impedance = numeric_impedance and pd.api.types.is_numeric_dtype(df[zimag_col])
-
-    return bool(repeated_rows and enough_frequency_points and numeric_impedance)
-
-
-def _pivot_eis_long_table(
-    df: pd.DataFrame,
-    label_col: str,
-    sample_id_col: str,
-    frequency_col: str,
-    zreal_col: str,
-    zimag_col: Optional[str] = None,
-    phase_col: Optional[str] = None,
-    modulus_col: Optional[str] = None,
-) -> pd.DataFrame:
-    """将长表 EIS 数据透视为宽表：每个样本一行，每个频点一个特征列。"""
-    working_df = df.copy()
-    working_df[frequency_col] = working_df[frequency_col].apply(_format_frequency_token)
-
-    pivot_frames = []
-
-    real_pivot = working_df.pivot_table(
-        index=sample_id_col,
-        columns=frequency_col,
-        values=zreal_col,
-        aggfunc="mean",
-    )
-    real_pivot.columns = [f"Zreal_{freq}Hz" for freq in real_pivot.columns]
-    pivot_frames.append(real_pivot)
-
-    if zimag_col and zimag_col in working_df.columns:
-        imag_pivot = working_df.pivot_table(
-            index=sample_id_col,
-            columns=frequency_col,
-            values=zimag_col,
-            aggfunc="mean",
-        )
-        imag_pivot.columns = [f"Zimag_{freq}Hz" for freq in imag_pivot.columns]
-        pivot_frames.append(imag_pivot)
-
-    if phase_col and phase_col in working_df.columns:
-        phase_pivot = working_df.pivot_table(
-            index=sample_id_col,
-            columns=frequency_col,
-            values=phase_col,
-            aggfunc="mean",
-        )
-        phase_pivot.columns = [f"Phase_{freq}Hz" for freq in phase_pivot.columns]
-        pivot_frames.append(phase_pivot)
-
-    if modulus_col and modulus_col in working_df.columns:
-        modulus_pivot = working_df.pivot_table(
-            index=sample_id_col,
-            columns=frequency_col,
-            values=modulus_col,
-            aggfunc="mean",
-        )
-        modulus_pivot.columns = [f"Modulus_{freq}Hz" for freq in modulus_pivot.columns]
-        pivot_frames.append(modulus_pivot)
-
-    wide_df = pd.concat(pivot_frames, axis=1).reset_index()
-
-    label_series = (
-        working_df.groupby(sample_id_col)[label_col]
-        .agg(lambda values: values.mode(dropna=True).iloc[0] if not values.mode(dropna=True).empty else values.iloc[0])
-        .rename(label_col)
-    )
-    wide_df = wide_df.merge(
-        label_series.reset_index(),
-        how="left",
-        on=sample_id_col,
-    )
-    return wide_df
-
-
-def _identify_eis_feature_columns(
-    df: pd.DataFrame,
-    label_col: str,
-    feature_columns: Optional[List[str]] = None,
-) -> List[str]:
-    if feature_columns:
-        valid_columns = [column for column in feature_columns if column in df.columns]
-        if not valid_columns:
-            raise ValueError("指定的 EIS 特征列在数据中不存在")
-        return valid_columns
-
-    # 优先使用 9 个 EIS 统计特征（总阻抗/平均阻抗/最高阻抗/次高阻抗/最低阻抗/次低阻抗/标准差/EIS电阻实部/EIS电阻虚部）
-    stat_columns = [col for col in EIS_STAT_FEATURES if col in df.columns]
-    if len(stat_columns) >= 7:  # 大部分统计特征存在即优先使用
-        logger.info(f"检测到 EIS 统计特征 ({len(stat_columns)}/{len(EIS_STAT_FEATURES)})，将仅使用这些特征训练")
-        return stat_columns
-
-    numeric_columns = [
-        column
-        for column in df.columns
-        if column != label_col and pd.api.types.is_numeric_dtype(df[column])
-    ]
-    if not numeric_columns:
-        raise ValueError("未找到可用于训练的数值型特征列")
-
-    eis_columns = []
-    for column in numeric_columns:
-        normalized = _normalize_feature_name(column)
-        if any(keyword in normalized for keyword in EIS_FEATURE_KEYWORDS):
-            eis_columns.append(column)
-
-    if eis_columns:
-        return eis_columns
-    return numeric_columns
-
-
-def _extract_frequency_for_sorting(column_name: str) -> Tuple[int, float, str]:
-    match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*hz", str(column_name).lower())
-    if match:
-        return (0, float(match.group(1)), str(column_name))
-    match = re.search(r"([0-9]+(?:\.[0-9]+)?)", str(column_name).lower())
-    if match:
-        return (1, float(match.group(1)), str(column_name))
-    return (2, float("inf"), str(column_name))
-
-
-def _sort_eis_feature_columns(feature_columns: List[str]) -> List[str]:
-    return sorted(feature_columns, key=_extract_frequency_for_sorting)
-
-
-def prepare_eis_training_dataframe(
-    data_source: Any,
-    label_col: Optional[str] = None,
-    feature_columns: Optional[List[str]] = None,
-    label_mapping: Optional[Dict[str, str]] = None,
-    sample_id_col: Optional[str] = None,
-    frequency_col: Optional[str] = None,
-    zreal_col: Optional[str] = None,
-    zimag_col: Optional[str] = None,
-    phase_col: Optional[str] = None,
-    modulus_col: Optional[str] = None,
-) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
-    """准备 EIS 训练数据，支持宽表和长表两种格式。"""
-    if isinstance(data_source, pd.DataFrame):
-        df = data_source.copy()
-        source_description = "<DataFrame>"
-    else:
-        source_description = str(data_source)
-        df = _load_tabular_data(source_description)
-
-    label_col = _infer_label_column(df, label_col)
-    if not label_col:
-        raise ValueError("无法自动识别标签列，请通过 label_col 显式指定，例如：状态 / label")
-
-    detected = _auto_detect_eis_long_table_columns(
-        df=df,
-        label_col=label_col,
-        sample_id_col=sample_id_col,
-        frequency_col=frequency_col,
-        zreal_col=zreal_col,
-        zimag_col=zimag_col,
-        phase_col=phase_col,
-        modulus_col=modulus_col,
-    )
-
-    data_layout = "wide"
-    if _looks_like_eis_long_table(df, detected):
-        if not detected.get("sample_id_col"):
-            raise ValueError("检测到 EIS 长表结构，但缺少样本 ID 列")
-        if not detected.get("frequency_col"):
-            raise ValueError("检测到 EIS 长表结构，但缺少频率列")
-        if not detected.get("zreal_col"):
-            raise ValueError("检测到 EIS 长表结构，但缺少阻抗实部列")
-
-        df = _pivot_eis_long_table(
-            df=df,
-            label_col=label_col,
-            sample_id_col=detected["sample_id_col"],
-            frequency_col=detected["frequency_col"],
-            zreal_col=detected["zreal_col"],
-            zimag_col=detected.get("zimag_col"),
-            phase_col=detected.get("phase_col"),
-            modulus_col=detected.get("modulus_col"),
-        )
-        data_layout = "long_to_wide"
-        label_col = _infer_label_column(df, label_col) or label_col
-
-    df = _remove_duplicates(df)
-    df = df.dropna(subset=[label_col]).reset_index(drop=True)
-    df[label_col] = _canonicalize_label_series(df[label_col], label_mapping)
-
-    feature_columns = _identify_eis_feature_columns(df, label_col, feature_columns)
-    feature_columns = _sort_eis_feature_columns(feature_columns)
-
-    feature_df = df[feature_columns].apply(pd.to_numeric, errors="coerce")
-    valid_rows = feature_df.notna().sum(axis=1) > 0
-    feature_df = feature_df.loc[valid_rows].reset_index(drop=True)
-    label_series = df.loc[valid_rows, label_col].reset_index(drop=True)
-
-    prepared_df = feature_df.copy()
-    prepared_df[label_col] = label_series
-
-    metadata = {
-        "mode": "eis",
-        "source": source_description,
-        "data_layout": data_layout,
-        "label_col": label_col,
-        "feature_columns": feature_columns,
-        "detected_long_table_columns": detected,
-        "class_names": sorted(label_series.astype(str).unique().tolist()),
-        "num_samples": int(len(prepared_df)),
-        "num_features": int(len(feature_columns)),
-    }
-    return prepared_df, label_col, metadata
-
-
-def _local_select_feature_indices(
-    feature_names: List[str],
-    importances: np.ndarray,
-    max_selected_features: int = 160,
-) -> np.ndarray:
-    feature_count = len(feature_names)
-    if feature_count <= max_selected_features:
-        return np.arange(feature_count, dtype=int)
-
-    importance_values = np.asarray(importances, dtype=float)
-    if importance_values.size != feature_count or np.allclose(importance_values.sum(), 0.0):
-        return np.arange(max_selected_features, dtype=int)
-
-    sorted_idx = np.argsort(importance_values)[::-1]
-    return np.asarray(sorted_idx[:max_selected_features], dtype=int)
-
-
-def _local_train_preprocess_and_select_from_df(
-    df: pd.DataFrame,
-    test_size: float = 0.2,
-    seed: int = 42,
-    label_col: Optional[str] = None,
-    feature_mode: str = "default",
-    max_selected_features: int = 160,
-) -> Dict[str, Any]:
-    """本地回退版预处理：划分、缺失值、异常值、标准化、特征选择。"""
-    working_df = df.copy()
-    label_col = _infer_label_column(working_df, label_col)
-    if not label_col or label_col not in working_df.columns:
-        raise ValueError("无法识别标签列，无法继续训练")
-
-    working_df = _remove_duplicates(working_df)
-    working_df = working_df.dropna(subset=[label_col]).reset_index(drop=True)
-
-    feature_names = [column for column in working_df.columns if column != label_col]
-    if not feature_names:
-        raise ValueError("没有可用于训练的特征列")
-
-    X_df = working_df[feature_names].apply(pd.to_numeric, errors="coerce")
-    y_raw = working_df[label_col].astype(str).reset_index(drop=True)
-
-    stratify_target = y_raw if y_raw.nunique() > 1 else None
-    X_train_df, X_test_df, y_train_raw, y_test_raw = train_test_split(
-        X_df,
-        y_raw,
-        test_size=test_size,
-        stratify=stratify_target,
-        random_state=seed,
-    )
-
-    fill_values = _fit_missing_values(X_train_df)
-    X_train_df = _apply_missing_values(X_train_df, fill_values)
-    X_test_df = _apply_missing_values(X_test_df, fill_values)
-
-    outlier_bounds = _fit_outlier_bounds(X_train_df, threshold=3.0)
-    X_train_df = _apply_outlier_bounds(X_train_df, outlier_bounds)
-    X_test_df = _apply_outlier_bounds(X_test_df, outlier_bounds)
-
-    label_encoder = LabelEncoder()
-    y_train = label_encoder.fit_transform(y_train_raw.astype(str))
-    y_test = label_encoder.transform(y_test_raw.astype(str))
-
-    importance_model = GradientBoostingClassifier(random_state=seed)
-    importance_model.fit(X_train_df.values, y_train)
-    full_importances = np.asarray(importance_model.feature_importances_, dtype=float)
-
-    selected_idx = _local_select_feature_indices(
-        feature_names=feature_names,
-        importances=full_importances,
-        max_selected_features=max_selected_features,
-    )
-
-    selected_feature_names = [feature_names[idx] for idx in selected_idx]
-    selected_importances = full_importances[selected_idx]
-
-    scaler = StandardScaler()
-    X_train_selected_raw = X_train_df.iloc[:, selected_idx].reset_index(drop=True)
-    X_test_selected_raw = X_test_df.iloc[:, selected_idx].reset_index(drop=True)
-    X_train_selected = scaler.fit_transform(X_train_selected_raw.values)
-    X_test_selected = scaler.transform(X_test_selected_raw.values)
-
-    preprocess_meta = {
-        "feature_mode": feature_mode,
-        "label_col": label_col,
-        "all_feature_names": feature_names,
-        "selected_feature_names": selected_feature_names,
-        "selected_feature_indices": selected_idx.tolist(),
-        "fill_values": fill_values,
-        "outlier_bounds": outlier_bounds,
-        "scaler_mean": scaler.mean_.tolist(),
-        "scaler_scale": scaler.scale_.tolist(),
-        "label_classes": label_encoder.classes_.tolist(),
-    }
-
-    result = {
-        "X_train": np.asarray(X_train_selected, dtype=np.float32),
-        "X_test": np.asarray(X_test_selected, dtype=np.float32),
-        "y_train": np.asarray(y_train, dtype=np.int32),
-        "y_test": np.asarray(y_test, dtype=np.int32),
-        "num_classes": int(len(label_encoder.classes_)),
-        "feature_names": selected_feature_names,
-        "class_names": label_encoder.classes_.tolist(),
-        "feature_importances": np.asarray(selected_importances, dtype=float),
-        "preprocess_meta": preprocess_meta,
-        "raw_train_df": X_train_selected_raw,
-        "raw_test_df": X_test_selected_raw,
-        "raw_y_train": y_train_raw.reset_index(drop=True),
-        "raw_y_test": y_test_raw.reset_index(drop=True),
-        "removed_power_columns": [],
-        "retained_current_columns": [],
-    }
-    return result
-
-
 def load_and_preprocess_data(
     data_path: str,
     test_size: float = 0.2,
     seed: int = 42,
     prepared_df: Optional["pd.DataFrame"] = None,
     label_col: Optional[str] = None,
-    feature_mode: str = "default",
 ):
-    """加载并预处理数据。EIS 模式优先走本地回退逻辑，避免被功率/电流策略限制。"""
+    """加载并预处理数据（委托给 preprocess_utils 公共模块）。"""
     logger.info(f"加载数据: {data_path}")
-
-    if feature_mode == "eis":
-        if prepared_df is None:
-            prepared_df, label_col, eis_meta = prepare_eis_training_dataframe(
-                data_path,
-                label_col=label_col,
-            )
-            logger.info(
-                f"EIS 数据准备完成: {eis_meta['num_samples']} 个样本, {eis_meta['num_features']} 个特征"
-            )
-        data = _local_train_preprocess_and_select_from_df(
+    if prepared_df is None:
+        data = train_preprocess_and_select(
+            data_path=data_path,
+            test_size=test_size,
+            seed=seed,
+            label_col=label_col,
+        )
+    else:
+        data = train_preprocess_and_select_from_df(
             df=prepared_df,
             test_size=test_size,
             seed=seed,
             label_col=label_col,
-            feature_mode="eis",
         )
-    else:
-        if PREPROCESS_UTILS_AVAILABLE and callable(train_preprocess_and_select):
-            if prepared_df is None:
-                data = train_preprocess_and_select(
-                    data_path=data_path,
-                    test_size=test_size,
-                    seed=seed,
-                    label_col=label_col,
-                )
-            else:
-                data = train_preprocess_and_select_from_df(
-                    df=prepared_df,
-                    test_size=test_size,
-                    seed=seed,
-                    label_col=label_col,
-                )
-        else:
-            if PREPROCESS_UTILS_IMPORT_ERROR is not None:
-                logger.warning(
-                    f"preprocess_utils 不可用，已回退到本地预处理: {PREPROCESS_UTILS_IMPORT_ERROR}"
-                )
-            raw_df = prepared_df if prepared_df is not None else _load_tabular_data(data_path)
-            data = _local_train_preprocess_and_select_from_df(
-                df=raw_df,
-                test_size=test_size,
-                seed=seed,
-                label_col=label_col,
-                feature_mode=feature_mode,
-            )
 
     logger.info(
         f"选择 {len(data['feature_names'])} 个特征，类别数: {data['num_classes']}"
@@ -2052,583 +1461,6 @@ def generate_shap_artifacts(
                 detail=str(exc),
             )
         )
-
-
-
-def _infer_state_role_map(class_names: List[str]) -> Dict[str, int]:
-    """将类别名映射为 normal / dry / wet 角色。"""
-    alias_map = {
-        "normal": {_normalize_feature_name(alias) for alias in EIS_LABEL_ALIASES["正常"] + ("正常",)},
-        "dry": {_normalize_feature_name(alias) for alias in EIS_LABEL_ALIASES["过干"] + ("过干",)},
-        "wet": {_normalize_feature_name(alias) for alias in EIS_LABEL_ALIASES["过湿"] + ("过湿",)},
-    }
-
-    role_map: Dict[str, int] = {}
-    for idx, class_name in enumerate(class_names):
-        normalized = _normalize_feature_name(class_name)
-        if normalized in alias_map["normal"]:
-            role_map["normal"] = idx
-        elif normalized in alias_map["dry"]:
-            role_map["dry"] = idx
-        elif normalized in alias_map["wet"]:
-            role_map["wet"] = idx
-
-    # 兜底：训练集标签是数字/数字字符串（常见：0/1/2），但仍希望生成量化报告
-    # 约定：0=正常, 1=过干, 2=过湿（如你的编码不同，请用 --label-map 在数据阶段显式映射）
-    if not role_map:
-        numeric_to_role = {0: "normal", 1: "dry", 2: "wet"}
-        parsed: List[Tuple[int, int]] = []
-        for idx, name in enumerate(class_names):
-            try:
-                parsed.append((idx, int(str(name).strip())))
-            except Exception:
-                parsed = []
-                break
-        if parsed:
-            for idx, value in parsed:
-                role = numeric_to_role.get(value)
-                if role and role not in role_map:
-                    role_map[role] = idx
-            if role_map:
-                logger.info(
-                    "检测到数字类别名 %s，按约定映射为 正常/过干/过湿 以生成量化报告。",
-                    class_names,
-                )
-    return role_map
-
-
-def _compute_centroid_similarity(
-    X_train: np.ndarray,
-    y_train: np.ndarray,
-    X_samples: np.ndarray,
-    num_classes: int,
-) -> np.ndarray:
-    """基于类中心距离计算相似度，用于辅助量化。"""
-    X_train = np.asarray(X_train, dtype=float)
-    X_samples = np.asarray(X_samples, dtype=float)
-    y_train = np.asarray(y_train, dtype=int)
-
-    centroids = []
-    for class_idx in range(num_classes):
-        class_mask = y_train == class_idx
-        if np.any(class_mask):
-            centroids.append(X_train[class_mask].mean(axis=0))
-        else:
-            centroids.append(np.zeros(X_train.shape[1], dtype=float))
-    centroid_matrix = np.vstack(centroids)
-
-    diff = X_samples[:, None, :] - centroid_matrix[None, :, :]
-    distances = np.linalg.norm(diff, axis=2)
-    similarities = np.exp(-distances)
-    denom = similarities.sum(axis=1, keepdims=True)
-    denom[denom == 0] = 1.0
-    return similarities / denom
-
-
-def quantize_eis_prediction(
-    prob_vector: np.ndarray,
-    class_names: List[str],
-    centroid_similarity: Optional[np.ndarray] = None,
-) -> Dict[str, Any]:
-    """把分类输出转成更易解释的量化结果。"""
-    probabilities = np.asarray(prob_vector, dtype=float).reshape(-1)
-    role_map = _infer_state_role_map(class_names)
-
-    normal_prob = float(probabilities[role_map["normal"]]) if "normal" in role_map else 0.0
-    dry_prob = float(probabilities[role_map["dry"]]) if "dry" in role_map else 0.0
-    wet_prob = float(probabilities[role_map["wet"]]) if "wet" in role_map else 0.0
-
-    centroid_similarity = (
-        np.asarray(centroid_similarity, dtype=float).reshape(-1)
-        if centroid_similarity is not None
-        else None
-    )
-    normal_sim = (
-        float(centroid_similarity[role_map["normal"]])
-        if centroid_similarity is not None and "normal" in role_map
-        else normal_prob
-    )
-    dry_sim = (
-        float(centroid_similarity[role_map["dry"]])
-        if centroid_similarity is not None and "dry" in role_map
-        else dry_prob
-    )
-    wet_sim = (
-        float(centroid_similarity[role_map["wet"]])
-        if centroid_similarity is not None and "wet" in role_map
-        else wet_prob
-    )
-
-    normal_score = 0.7 * normal_prob + 0.3 * normal_sim
-    dry_wet_balance = 0.7 * (dry_prob - wet_prob) + 0.3 * (dry_sim - wet_sim)
-    dry_wet_balance = float(np.clip(dry_wet_balance, -1.0, 1.0))
-    state_score_0_100 = float(np.clip(50.0 + 50.0 * dry_wet_balance, 0.0, 100.0))
-    certainty = float(np.max(probabilities)) if probabilities.size else 0.0
-    abnormality = float(max(dry_prob, wet_prob))
-
-    if normal_score >= 0.60 and abs(dry_wet_balance) <= 0.20:
-        quantized_status = "正常"
-    elif dry_wet_balance >= 0:
-        if abnormality >= 0.80:
-            quantized_status = "严重过干"
-        elif abnormality >= 0.60:
-            quantized_status = "过干"
-        else:
-            quantized_status = "轻度偏干"
-    else:
-        if abnormality >= 0.80:
-            quantized_status = "严重过湿"
-        elif abnormality >= 0.60:
-            quantized_status = "过湿"
-        else:
-            quantized_status = "轻度偏湿"
-
-    if state_score_0_100 <= 35:
-        score_band = "湿风险高"
-    elif state_score_0_100 <= 45:
-        score_band = "偏湿"
-    elif state_score_0_100 < 55:
-        score_band = "正常窗口"
-    elif state_score_0_100 < 65:
-        score_band = "偏干"
-    else:
-        score_band = "干风险高"
-
-    return {
-        "normal_score": float(normal_score * 100.0),
-        "dry_score": float(dry_prob * 100.0),
-        "wet_score": float(wet_prob * 100.0),
-        "certainty_score": float(certainty * 100.0),
-        "abnormality_score": float(abnormality * 100.0),
-        "dry_wet_index": float(dry_wet_balance * 100.0),  # [-100, 100]
-        "state_score_0_100": state_score_0_100,  # 0=极湿, 50=正常, 100=极干
-        "score_band": score_band,
-        "quantized_status": quantized_status,
-    }
-
-
-def _compute_feature_decision_boundaries(
-    raw_train_df: pd.DataFrame,
-    raw_y_train: pd.Series,
-    feature_names: List[str],
-) -> Dict[str, Any]:
-    """基于训练集各类别的特征分布，计算每个特征的决策边界。
-
-    对每个特征，按类别统计分布（均值、标准差、分位数、最值），
-    然后在相邻类别之间取中位数的中点作为分割阈值。
-    返回完整的统计信息和可直接用于判断的边界规则。
-    """
-    raw_train_df = raw_train_df.reset_index(drop=True)
-    raw_y_train = raw_y_train.reset_index(drop=True)
-
-    class_names_sorted = sorted(raw_y_train.astype(str).unique().tolist())
-
-    # 1. 每个类别每个特征的完整统计
-    class_feature_stats: Dict[str, Dict[str, Dict[str, float]]] = {}
-    for class_name in class_names_sorted:
-        class_mask = raw_y_train.astype(str) == str(class_name)
-        class_part = raw_train_df.loc[class_mask]
-        class_feature_stats[str(class_name)] = {}
-        for feature_name in feature_names:
-            if feature_name not in class_part.columns:
-                continue
-            values = pd.to_numeric(class_part[feature_name], errors="coerce").dropna()
-            if values.empty:
-                continue
-            class_feature_stats[str(class_name)][feature_name] = {
-                "count": int(len(values)),
-                "mean": float(values.mean()),
-                "std": float(values.std(ddof=0)),
-                "min": float(values.min()),
-                "p5": float(values.quantile(0.05)),
-                "p10": float(values.quantile(0.10)),
-                "p25": float(values.quantile(0.25)),
-                "p50": float(values.quantile(0.50)),
-                "p75": float(values.quantile(0.75)),
-                "p90": float(values.quantile(0.90)),
-                "p95": float(values.quantile(0.95)),
-                "max": float(values.max()),
-            }
-
-    # 2. 计算每个特征的决策边界
-    decision_boundaries: Dict[str, Dict[str, Any]] = {}
-    has_three_classes = {"正常", "过干", "过湿"}.issubset(set(class_names_sorted))
-
-    for feature_name in feature_names:
-        feature_medians = {}
-        feature_means = {}
-        for class_name in class_names_sorted:
-            stats = class_feature_stats.get(class_name, {}).get(feature_name)
-            if stats:
-                feature_medians[class_name] = stats["p50"]
-                feature_means[class_name] = stats["mean"]
-
-        if len(feature_medians) < 2:
-            continue
-
-        # 按中位数排序
-        ordered = sorted(feature_medians.items(), key=lambda item: item[1])
-        ordered_by_mean = sorted(feature_means.items(), key=lambda item: item[1])
-
-        boundary_info: Dict[str, Any] = {
-            "ordered_states_by_median": [item[0] for item in ordered],
-            "ordered_states_by_mean": [item[0] for item in ordered_by_mean],
-            "median_values": {name: float(value) for name, value in ordered},
-            "mean_values": {name: float(value) for name, value in ordered_by_mean},
-        }
-
-        # 计算相邻类别间的阈值（中位数中点 + 均值中点，取平均）
-        thresholds = []
-        for i in range(len(ordered) - 1):
-            low_name, low_median = ordered[i]
-            high_name, high_median = ordered[i + 1]
-            median_midpoint = (low_median + high_median) / 2.0
-            low_mean = feature_means.get(low_name, low_median)
-            high_mean = feature_means.get(high_name, high_median)
-            mean_midpoint = (low_mean + high_mean) / 2.0
-            threshold = (median_midpoint + mean_midpoint) / 2.0
-            thresholds.append({
-                "between": [low_name, high_name],
-                "threshold": float(threshold),
-                "median_midpoint": float(median_midpoint),
-                "mean_midpoint": float(mean_midpoint),
-            })
-        boundary_info["thresholds"] = thresholds
-
-        # 3. 生成每个类别的判定区间（基于训练集 p5-p95 范围）
-        class_ranges = {}
-        for class_name in class_names_sorted:
-            stats = class_feature_stats.get(class_name, {}).get(feature_name)
-            if stats:
-                class_ranges[class_name] = {
-                    "typical_range": [float(stats["p10"]), float(stats["p90"])],
-                    "broad_range": [float(stats["p5"]), float(stats["p95"])],
-                    "full_range": [float(stats["min"]), float(stats["max"])],
-                }
-        boundary_info["class_ranges"] = class_ranges
-
-        # 4. 生成简明判定规则
-        if len(thresholds) >= 1:
-            rules = []
-            for i, state_name in enumerate([item[0] for item in ordered]):
-                if i == 0:
-                    rules.append(f"{feature_name} < {thresholds[0]['threshold']:.6g} → {state_name}")
-                elif i == len(ordered) - 1:
-                    rules.append(f"{feature_name} >= {thresholds[-1]['threshold']:.6g} → {state_name}")
-                else:
-                    rules.append(
-                        f"{thresholds[i-1]['threshold']:.6g} <= {feature_name} < {thresholds[i]['threshold']:.6g} → {state_name}"
-                    )
-            boundary_info["decision_rules"] = rules
-
-        decision_boundaries[feature_name] = boundary_info
-
-    return {
-        "class_feature_stats": class_feature_stats,
-        "decision_boundaries": decision_boundaries,
-    }
-
-
-def build_eis_quantization_artifacts(
-    data: Dict[str, Any],
-    class_names: List[str],
-    y_pred_prob: np.ndarray,
-    y_pred: np.ndarray,
-    y_test: np.ndarray,
-    output_dir: str,
-    top_n_features: int = 12,
-) -> Dict[str, Any]:
-    """生成 EIS 量化报告、特征决策边界、规则摘要和测试集逐样本量化结果。"""
-    os.makedirs(output_dir, exist_ok=True)
-
-    role_map = _infer_state_role_map(class_names)
-    if not role_map:
-        return {
-            "status": "skipped",
-            "detail": "class names are not compatible with 正常/过干/过湿 mapping",
-        }
-
-    selected_feature_names = list(data.get("feature_names", []))
-    selected_importances = np.asarray(data.get("feature_importances", np.array([])), dtype=float)
-    if selected_importances.size != len(selected_feature_names):
-        selected_importances = np.ones(len(selected_feature_names), dtype=float)
-
-    top_idx = np.argsort(selected_importances)[::-1][: min(top_n_features, len(selected_feature_names))]
-    top_features = [selected_feature_names[idx] for idx in top_idx]
-
-    raw_train_df = data.get("raw_train_df")
-    raw_test_df = data.get("raw_test_df")
-    raw_y_train = pd.Series(data.get("raw_y_train", []), dtype="object")
-    raw_y_test = pd.Series(data.get("raw_y_test", []), dtype="object")
-
-    centroid_similarity = None
-    if "X_train" in data and "X_test" in data:
-        try:
-            centroid_similarity = _compute_centroid_similarity(
-                X_train=data["X_train"],
-                y_train=data["y_train"],
-                X_samples=data["X_test"],
-                num_classes=len(class_names),
-            )
-        except Exception as exc:
-            logger.warning(f"EIS 类中心相似度计算失败，改用概率直接量化: {exc}")
-            centroid_similarity = None
-
-    prediction_rows = []
-    for idx in range(len(y_pred)):
-        prob_vector = np.asarray(y_pred_prob[idx], dtype=float)
-        centroid_row = centroid_similarity[idx] if centroid_similarity is not None else None
-        quant_info = quantize_eis_prediction(prob_vector, class_names, centroid_similarity=centroid_row)
-        row = {
-            "sample_index": int(idx),
-            "true_label": str(class_names[int(y_test[idx])]),
-            "pred_label": str(class_names[int(y_pred[idx])]),
-        }
-        for class_idx, class_name in enumerate(class_names):
-            row[f"prob_{class_name}"] = float(prob_vector[class_idx])
-        row.update(quant_info)
-        prediction_rows.append(row)
-
-    predictions_df = pd.DataFrame(prediction_rows)
-    predictions_csv_path = os.path.join(output_dir, "eis_test_quantification.csv")
-    predictions_df.to_csv(predictions_csv_path, index=False, encoding="utf-8-sig")
-
-    # ===== 计算特征决策边界 =====
-    boundary_result: Dict[str, Any] = {}
-    class_feature_stats: Dict[str, Dict[str, Dict[str, float]]] = {}
-    decision_boundaries: Dict[str, Dict[str, Any]] = {}
-
-    if isinstance(raw_train_df, pd.DataFrame) and not raw_train_df.empty and len(raw_y_train) == len(raw_train_df):
-        # 使用所有选中特征（而非仅 top_n）来计算边界
-        boundary_result = _compute_feature_decision_boundaries(
-            raw_train_df=raw_train_df,
-            raw_y_train=raw_y_train,
-            feature_names=selected_feature_names,
-        )
-        class_feature_stats = boundary_result.get("class_feature_stats", {})
-        decision_boundaries = boundary_result.get("decision_boundaries", {})
-
-    # 兼容旧版 threshold_hints
-    threshold_hints: Dict[str, Dict[str, Any]] = {}
-    for feature_name, boundary in decision_boundaries.items():
-        thresholds = boundary.get("thresholds", [])
-        if len(thresholds) >= 2:
-            threshold_hints[feature_name] = {
-                "ordered_states_by_median": boundary["ordered_states_by_median"],
-                "median_values": boundary["median_values"],
-                "threshold_1": thresholds[0]["threshold"],
-                "threshold_2": thresholds[1]["threshold"],
-            }
-        elif len(thresholds) == 1:
-            threshold_hints[feature_name] = {
-                "ordered_states_by_median": boundary["ordered_states_by_median"],
-                "median_values": boundary["median_values"],
-                "threshold_1": thresholds[0]["threshold"],
-                "threshold_2": thresholds[0]["threshold"],
-            }
-
-    summary_counts = predictions_df["quantized_status"].value_counts(dropna=False).to_dict()
-    mean_scores_by_true_label = (
-        predictions_df.groupby("true_label")["state_score_0_100"].mean().round(4).to_dict()
-        if not predictions_df.empty
-        else {}
-    )
-
-    report = {
-        "status": "success",
-        "state_role_map": role_map,
-        "training_features": selected_feature_names,
-        "top_features": top_features,
-        "score_definition": {
-            "state_score_0_100": "0=极湿, 50=正常中心, 100=极干",
-            "dry_wet_index": "-100=湿端, 0=正常中心, 100=干端",
-            "normal_score": "越高越接近正常",
-        },
-        "quantization_windows": {
-            "0-35": "湿风险高 / 过湿倾向",
-            "35-45": "轻度偏湿",
-            "45-55": "正常窗口",
-            "55-65": "轻度偏干",
-            "65-100": "干风险高 / 过干倾向",
-        },
-        "feature_statistics_by_class": class_feature_stats,
-        "feature_decision_boundaries": decision_boundaries,
-        "feature_threshold_hints": threshold_hints,
-        "prediction_summary": {
-            "sample_count": int(len(predictions_df)),
-            "quantized_status_counts": {str(k): int(v) for k, v in summary_counts.items()},
-            "mean_state_score_by_true_label": {
-                str(k): float(v) for k, v in mean_scores_by_true_label.items()
-            },
-        },
-        "artifacts": {
-            "predictions_csv": predictions_csv_path,
-        },
-    }
-
-    report_json_path = os.path.join(output_dir, "eis_quantization_report.json")
-    with open(report_json_path, "w", encoding="utf-8") as f:
-        json.dump(_to_serializable(report), f, indent=2, ensure_ascii=False)
-
-    # ===== 输出特征决策边界独立 JSON =====
-    boundaries_json_path = os.path.join(output_dir, "eis_feature_boundaries.json")
-    boundaries_export = {
-        "description": "EIS 特征决策边界 —— 基于训练集各类别统计分布计算",
-        "features": selected_feature_names,
-        "class_names": sorted(class_feature_stats.keys()) if class_feature_stats else [],
-        "boundaries": decision_boundaries,
-        "statistics": class_feature_stats,
-    }
-    with open(boundaries_json_path, "w", encoding="utf-8") as f:
-        json.dump(_to_serializable(boundaries_export), f, indent=2, ensure_ascii=False)
-    report["artifacts"]["boundaries_json"] = boundaries_json_path
-
-    # ===== 生成可读文本报告 =====
-    text_lines = [
-        "EIS 特征决策边界与量化规则报告",
-        "=" * 70,
-        "",
-        f"训练特征 ({len(selected_feature_names)} 个): {', '.join(selected_feature_names)}",
-        "",
-        "【一、特征决策边界（可直接用于判断样本状态）】",
-        "-" * 70,
-    ]
-
-    for feature_name in selected_feature_names:
-        boundary = decision_boundaries.get(feature_name)
-        if not boundary:
-            continue
-        text_lines.append(f"")
-        text_lines.append(f"特征: {feature_name}")
-        text_lines.append(f"  中位数排序: {' < '.join(boundary['ordered_states_by_median'])}")
-        for class_name in boundary["ordered_states_by_median"]:
-            median_val = boundary["median_values"].get(class_name, 0)
-            mean_val = boundary["mean_values"].get(class_name, 0)
-            text_lines.append(f"    {class_name}: 中位数={median_val:.6g}, 均值={mean_val:.6g}")
-        for thresh in boundary.get("thresholds", []):
-            text_lines.append(
-                f"  决策阈值 ({thresh['between'][0]} vs {thresh['between'][1]}): {thresh['threshold']:.6g}"
-            )
-        rules = boundary.get("decision_rules", [])
-        if rules:
-            text_lines.append(f"  判定规则:")
-            for rule in rules:
-                text_lines.append(f"    {rule}")
-
-    # 各类别特征范围汇总表
-    text_lines.append("")
-    text_lines.append("【二、各类别特征典型范围 (p10 ~ p90)】")
-    text_lines.append("-" * 70)
-    for class_name in sorted(class_feature_stats.keys()):
-        text_lines.append(f"")
-        text_lines.append(f"  {class_name}:")
-        text_lines.append(f"  {'特征':<14s} {'均值':>10s} {'标准差':>10s} {'p10':>10s} {'p50':>10s} {'p90':>10s} {'最小':>10s} {'最大':>10s}")
-        for feature_name in selected_feature_names:
-            stats = class_feature_stats.get(class_name, {}).get(feature_name)
-            if not stats:
-                continue
-            text_lines.append(
-                f"  {feature_name:<14s} {stats['mean']:>10.6g} {stats['std']:>10.6g} "
-                f"{stats['p10']:>10.6g} {stats['p50']:>10.6g} {stats['p90']:>10.6g} "
-                f"{stats['min']:>10.6g} {stats['max']:>10.6g}"
-            )
-
-    text_lines.append("")
-    text_lines.append("【三、量化评分体系】")
-    text_lines.append("-" * 70)
-    text_lines.append("state_score_0_100: 0=极湿, 50=正常中心, 100=极干")
-    text_lines.append("dry_wet_index: -100=湿端, 0=正常中心, 100=干端")
-    text_lines.append("")
-    text_lines.append("测试集量化状态分布:")
-    for status_name, count in summary_counts.items():
-        text_lines.append(f"  {status_name}: {count}")
-
-    report_txt_path = os.path.join(output_dir, "eis_quantization_report.txt")
-    with open(report_txt_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(text_lines))
-
-    # ===== 输出简明决策边界卡片（CSV 格式，方便直接使用）=====
-    boundary_rows = []
-    for feature_name in selected_feature_names:
-        boundary = decision_boundaries.get(feature_name)
-        if not boundary:
-            continue
-        ordered_states = boundary["ordered_states_by_median"]
-        thresholds = boundary.get("thresholds", [])
-        for i, state_name in enumerate(ordered_states):
-            low_bound = thresholds[i - 1]["threshold"] if i > 0 else None
-            high_bound = thresholds[i]["threshold"] if i < len(thresholds) else None
-            stats = class_feature_stats.get(state_name, {}).get(feature_name, {})
-            boundary_rows.append({
-                "特征": feature_name,
-                "状态": state_name,
-                "下界": float(low_bound) if low_bound is not None else "",
-                "上界": float(high_bound) if high_bound is not None else "",
-                "均值": float(stats.get("mean", 0)),
-                "中位数": float(stats.get("p50", 0)),
-                "标准差": float(stats.get("std", 0)),
-                "p10": float(stats.get("p10", 0)),
-                "p90": float(stats.get("p90", 0)),
-            })
-    if boundary_rows:
-        boundary_card_path = os.path.join(output_dir, "eis_decision_boundaries.csv")
-        pd.DataFrame(boundary_rows).to_csv(boundary_card_path, index=False, encoding="utf-8-sig")
-        report["artifacts"]["boundaries_csv"] = boundary_card_path
-
-    report["artifacts"]["report_json"] = report_json_path
-    report["artifacts"]["report_txt"] = report_txt_path
-    return report
-
-
-def run_eis_training_pipeline(
-    data_path: str,
-    label_col: Optional[str] = None,
-    feature_columns: Optional[List[str]] = None,
-    label_mapping: Optional[Dict[str, str]] = None,
-    sample_id_col: Optional[str] = None,
-    frequency_col: Optional[str] = None,
-    zreal_col: Optional[str] = None,
-    zimag_col: Optional[str] = None,
-    phase_col: Optional[str] = None,
-    modulus_col: Optional[str] = None,
-    test_size: float = 0.2,
-    epochs: int = 100,
-    budget: int = 10,
-    seed: int = 42,
-    use_gpu: bool = True,
-    skip_ceo: bool = True,
-    output_dir: str = "results_eis",
-) -> Dict[str, Any]:
-    """EIS 专用训练入口。"""
-    prepared_df, prepared_label_col, eis_meta = prepare_eis_training_dataframe(
-        data_source=data_path,
-        label_col=label_col,
-        feature_columns=feature_columns,
-        label_mapping=label_mapping,
-        sample_id_col=sample_id_col,
-        frequency_col=frequency_col,
-        zreal_col=zreal_col,
-        zimag_col=zimag_col,
-        phase_col=phase_col,
-        modulus_col=modulus_col,
-    )
-    logger.info(
-        f"EIS 数据就绪: {eis_meta['num_samples']} 个样本, {eis_meta['num_features']} 个特征, 布局={eis_meta['data_layout']}"
-    )
-    return run_training_pipeline(
-        data_path=data_path,
-        test_size=test_size,
-        epochs=epochs,
-        budget=budget,
-        seed=seed,
-        use_gpu=use_gpu,
-        skip_ceo=skip_ceo,
-        output_dir=output_dir,
-        prepared_df=prepared_df,
-        prepared_label_col=prepared_label_col,
-        feature_mode="eis",
-    )
-
 
 
 # ================== CEO 优化算法（内联实现）==================
@@ -3095,7 +1927,6 @@ def run_training_pipeline(
     prepared_df: Optional["pd.DataFrame"] = None,
     prepared_label_col: Optional[str] = None,
     gpu_info: Optional[Dict[str, Any]] = None,
-    feature_mode: str = "default",
 ):
     """完整训练流程
 
@@ -3131,7 +1962,6 @@ def run_training_pipeline(
             data_path,
             test_size=test_size,
             seed=seed,
-            feature_mode=feature_mode,
         )
     else:
         data = load_and_preprocess_data(
@@ -3140,7 +1970,6 @@ def run_training_pipeline(
             seed=seed,
             prepared_df=prepared_df,
             label_col=prepared_label_col,
-            feature_mode=feature_mode,
         )
     X_train, X_test = data["X_train"], data["X_test"]
     y_train, y_test = data["y_train"], data["y_test"]
@@ -3259,6 +2088,7 @@ def run_training_pipeline(
     prec = precision_score(y_test, y_pred, average="weighted")
     rec = recall_score(y_test, y_pred, average="weighted")
     f1 = f1_score(y_test, y_pred, average="weighted")
+    kappa = cohen_kappa_score(y_test, y_pred)
     per_class_metrics = {
         "precision": precision_score(y_test, y_pred, average=None, zero_division=0),
         "recall": recall_score(y_test, y_pred, average=None, zero_division=0),
@@ -3281,7 +2111,7 @@ def run_training_pipeline(
 
     # 保存预处理元数据，供继续训练与离线评估/预测复用
     preprocess_meta_path = os.path.join(output_dir, "preprocess_meta.json")
-    persist_preprocess_meta(data["preprocess_meta"], preprocess_meta_path)
+    save_preprocess_meta(data["preprocess_meta"], preprocess_meta_path)
     logger.info(f"预处理元数据已保存: {preprocess_meta_path}")
 
     # 生成可视化
@@ -3329,17 +2159,6 @@ def run_training_pipeline(
         seed=seed,
     )
 
-    eis_quantization = None
-    if feature_mode == "eis":
-        eis_quantization = build_eis_quantization_artifacts(
-            data=data,
-            class_names=display_class_names,
-            y_pred_prob=y_pred_prob,
-            y_pred=y_pred,
-            y_test=y_test,
-            output_dir=output_dir,
-        )
-
     results_split = int(round(test_size * 100))
     results_train = 100 - results_split
 
@@ -3349,6 +2168,7 @@ def run_training_pipeline(
         "precision": prec,
         "recall": rec,
         "f1_score": f1,
+        "cohen_kappa": kappa,
         "prediction_time": pred_time,
         "best_params": best_params,
         "gpu_info": gpu_info,
@@ -3358,11 +2178,24 @@ def run_training_pipeline(
         "test_ratio": results_split,
         "output_dir": output_dir,
         "shap": shap_results,
-        "feature_mode": feature_mode,
-        "class_names": display_class_names,
-        "selected_features": feature_names,
-        "eis_quantization": eis_quantization,
     }
+
+    paper_artifacts = build_training_figure_artifacts(
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test,
+        y_test=y_test,
+        y_pred=y_pred,
+        y_proba=y_pred_prob,
+        feature_names=feature_names,
+        class_names=display_class_names,
+        history=history.history,
+        metrics=results,
+        model_name="CEO-QAAdamW-EMSTGAT",
+        random_state=seed,
+    )
+    figure_data_paths = save_training_figure_artifacts(paper_artifacts, output_dir)
+    results["paper_figure_artifacts"] = figure_data_paths
 
     with open(os.path.join(output_dir, "results.json"), "w") as f:
         json.dump(results, f, indent=2, default=str)
@@ -3435,209 +2268,47 @@ def run_multi_split_experiments(
     return summaries
 
 
-
 # ================== 主入口 ==================
 if __name__ == "__main__":
-    def _resolve_data_path(user_path: str) -> str:
-        """
-        将用户输入的数据路径解析为实际存在的文件路径。
-        - 绝对路径：直接使用
-        - 相对路径：依次尝试（当前工作目录、项目根目录、脚本目录、model 目录）
-        """
-        if not user_path:
-            return user_path
+    data_path = os.path.join("数据文件", "测试数据.xlsx")
+    test_sizes = [0.2, 0.3, 0.4]
 
-        # 绝对路径或已存在的相对路径
-        if os.path.isabs(user_path) and os.path.exists(user_path):
-            return user_path
-        if os.path.exists(user_path):
-            return os.path.abspath(user_path)
-
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        repo_root = os.path.abspath(os.path.join(script_dir, os.pardir))
-
-        candidates = [
-            os.path.abspath(os.path.join(os.getcwd(), user_path)),
-            os.path.abspath(os.path.join(repo_root, user_path)),
-            os.path.abspath(os.path.join(script_dir, user_path)),
-            os.path.abspath(os.path.join(repo_root, "model", user_path)),
-            os.path.abspath(os.path.join(script_dir, "model", user_path)),
-        ]
-
-        for cand in candidates:
-            if os.path.exists(cand):
-                return cand
-
-        logger.error("❌ 数据集文件不存在: %s", user_path)
-        logger.error("已尝试以下路径（均未找到）:")
-        for cand in candidates:
-            logger.error("  - %s", cand)
-        return user_path
-
-    parser = argparse.ArgumentParser(
-        description="CEO-QAAdamW-EnhancedMSTGAT 训练器（支持 EIS 特征训练与量化输出）"
-    )
-    parser.add_argument("--data-path", default="测试数据.xlsx", help="CSV / Excel 数据路径")
-    parser.add_argument(
-        "--mode",
-        choices=["default", "eis"],
-        default="eis",
-        help="default=原始通用模式, eis=EIS 交流阻抗特征模式",
-    )
-    parser.add_argument("--label-col", default=None, help="标签列名，例如 状态 / label")
-    parser.add_argument(
-        "--feature-columns",
-        default=None,
-        help="逗号分隔的特征列名；EIS 模式下为空时自动识别阻抗相关列",
-    )
-    parser.add_argument(
-        "--label-map",
-        default=None,
-        help='JSON 字符串形式的标签映射，例如 {"0":"正常","1":"过干","2":"过湿"}',
-    )
-    parser.add_argument("--sample-id-col", default=None, help="EIS 长表的样本 ID 列")
-    parser.add_argument("--frequency-col", default=None, help="EIS 长表的频率列")
-    parser.add_argument("--zreal-col", default=None, help="EIS 长表的阻抗实部列")
-    parser.add_argument("--zimag-col", default=None, help="EIS 长表的阻抗虚部列")
-    parser.add_argument("--phase-col", default=None, help="EIS 长表的相位列")
-    parser.add_argument("--modulus-col", default=None, help="EIS 长表的阻抗模值列")
-    parser.add_argument("--test-size", type=float, default=0.2, help="测试集比例")
-    parser.add_argument(
-        "--test-sizes",
-        default=None,
-        help="仅 default 多比例实验使用，逗号分隔，例如 0.2,0.3,0.4",
-    )
-    parser.add_argument("--epochs", type=int, default=100, help="训练轮数")
-    parser.add_argument("--budget", type=int, default=10, help="CEO 搜索预算")
-    parser.add_argument("--seed", type=int, default=42, help="随机种子")
-    parser.add_argument("--output-dir", default=None, help="输出目录")
-    parser.add_argument(
-        "--run-multi-split",
-        action="store_true",
-        help="仅 default 模式使用，执行多组测试比例实验",
-    )
-    parser.add_argument(
-        "--skip-ceo",
-        dest="skip_ceo",
-        action="store_true",
-        help="跳过 CEO 搜索，直接使用默认最优参数",
-    )
-    parser.add_argument(
-        "--use-ceo",
-        dest="skip_ceo",
-        action="store_false",
-        help="启用 CEO 搜索",
-    )
-    parser.set_defaults(skip_ceo=True)
-    parser.add_argument("--gpu", dest="use_gpu", action="store_true", help="使用 GPU")
-    parser.add_argument("--cpu", dest="use_gpu", action="store_false", help="仅使用 CPU")
-    parser.set_defaults(use_gpu=True)
-
-    args = parser.parse_args()
-
-    args.data_path = _resolve_data_path(args.data_path)
-    if not os.path.exists(args.data_path):
+    if not os.path.exists(data_path):
+        logger.error(f"❌ 数据集文件不存在: {data_path}")
+        logger.info("请确保数据集文件位于正确的位置")
         sys.exit(1)
 
-    feature_columns = None
-    if args.feature_columns:
-        feature_columns = [item.strip() for item in str(args.feature_columns).split(",") if item.strip()]
+    logger.info(f"数据集路径: {data_path}")
+    logger.info(f"测试比例: {[int(size * 100) for size in test_sizes]}")
 
-    label_mapping = None
-    if args.label_map:
-        try:
-            label_mapping = json.loads(args.label_map)
-        except json.JSONDecodeError as exc:
-            logger.error(f"label_map 不是合法 JSON: {exc}")
-            sys.exit(1)
+    split_summaries = run_multi_split_experiments(
+        data_path=data_path,
+        test_sizes=test_sizes,
+        epochs=100,
+        budget=10,
+        seed=42,
+        use_gpu=True,
+        skip_ceo=True,
+    )
 
-    output_dir = args.output_dir
-    if not output_dir:
-        output_dir = "results_eis" if args.mode == "eis" else "results"
+    summary_output_dir = "results_testdata_summary"
+    os.makedirs(summary_output_dir, exist_ok=True)
+    summary_path = os.path.join(summary_output_dir, "split_metrics_summary.json")
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(split_summaries, f, indent=2, ensure_ascii=False)
+    logger.info(f"多比例汇总已保存: {summary_path}")
 
-    if args.mode == "eis":
-        result = run_eis_training_pipeline(
-            data_path=args.data_path,
-            label_col=args.label_col,
-            feature_columns=feature_columns,
-            label_mapping=label_mapping,
-            sample_id_col=args.sample_id_col,
-            frequency_col=args.frequency_col,
-            zreal_col=args.zreal_col,
-            zimag_col=args.zimag_col,
-            phase_col=args.phase_col,
-            modulus_col=args.modulus_col,
-            test_size=args.test_size,
-            epochs=args.epochs,
-            budget=args.budget,
-            seed=args.seed,
-            use_gpu=args.use_gpu,
-            skip_ceo=args.skip_ceo,
-            output_dir=output_dir,
+    plot_split_metrics_comparison(
+        split_summaries,
+        save_path=os.path.join(summary_output_dir, "split_metrics_comparison.png"),
+    )
+
+    print("\n" + "=" * 60)
+    print("多比例训练完成！")
+    for summary in split_summaries:
+        print(
+            f"  测试集 {summary['test_ratio']}% | 准确率: {summary['accuracy']:.4f} | "
+            f"精确率: {summary['precision']:.4f} | 召回率: {summary['recall']:.4f} | "
+            f"F1: {summary['f1_score']:.4f}"
         )
-        print("\n" + "=" * 60)
-        print("EIS 训练完成！")
-        print(f"输出目录: {result['output_dir']}")
-        print(f"准确率: {result['accuracy']:.4f}")
-        print(f"F1: {result['f1_score']:.4f}")
-        if result.get("eis_quantization"):
-            print("EIS 量化结果已生成:")
-            print(result["eis_quantization"].get("artifacts", {}))
-        print("=" * 60)
-    else:
-        if args.run_multi_split:
-            if args.test_sizes:
-                test_sizes = [
-                    float(item.strip())
-                    for item in str(args.test_sizes).split(",")
-                    if item.strip()
-                ]
-            else:
-                test_sizes = [0.2, 0.3, 0.4]
-
-            split_summaries = run_multi_split_experiments(
-                data_path=args.data_path,
-                test_sizes=test_sizes,
-                epochs=args.epochs,
-                budget=args.budget,
-                seed=args.seed,
-                use_gpu=args.use_gpu,
-                skip_ceo=args.skip_ceo,
-            )
-
-            summary_output_dir = output_dir
-            os.makedirs(summary_output_dir, exist_ok=True)
-            summary_path = os.path.join(summary_output_dir, "split_metrics_summary.json")
-            with open(summary_path, "w", encoding="utf-8") as f:
-                json.dump(split_summaries, f, indent=2, ensure_ascii=False)
-            plot_split_metrics_comparison(
-                split_summaries,
-                save_path=os.path.join(summary_output_dir, "split_metrics_comparison.png"),
-            )
-            print("\n" + "=" * 60)
-            print("多比例训练完成！")
-            for summary in split_summaries:
-                print(
-                    f"  测试集 {summary['test_ratio']}% | 准确率: {summary['accuracy']:.4f} | "
-                    f"精确率: {summary['precision']:.4f} | 召回率: {summary['recall']:.4f} | "
-                    f"F1: {summary['f1_score']:.4f}"
-                )
-            print("=" * 60)
-        else:
-            result = run_training_pipeline(
-                data_path=args.data_path,
-                test_size=args.test_size,
-                epochs=args.epochs,
-                budget=args.budget,
-                seed=args.seed,
-                use_gpu=args.use_gpu,
-                skip_ceo=args.skip_ceo,
-                output_dir=output_dir,
-                feature_mode="default",
-            )
-            print("\n" + "=" * 60)
-            print("训练完成！")
-            print(f"输出目录: {result['output_dir']}")
-            print(f"准确率: {result['accuracy']:.4f}")
-            print(f"F1: {result['f1_score']:.4f}")
-            print("=" * 60)
+    print("=" * 60)

@@ -72,3 +72,35 @@ python model_eis_quant.py \
 
 ## 6. 说明
 `eis_quantization_report` 中的阈值来自当前训练数据统计，是“数据驱动阈值”，适合当前数据集/台架/传感条件，不应直接当作普适物理常数。
+
+## 7. 传统/联合对比模型
+现有深度模型可与 `comparison_models.py` 中的对比模型做横向比较。默认对比集只保留一个传统增强树基线，并加入更接近时序/联合建模的深度组合模型：
+
+- 传统基线：`xgboost`
+- 深度联合模型：`cnn_lstm`、`mcnn`、`resnet_lstm`、`transformer_gru`、`cnn_transformer`
+
+运行完整默认对比：
+
+```bash
+python comparison_models.py \
+  --data 测试数据.csv \
+  --models default \
+  --test-size 0.2 \
+  --deep-epochs 30 \
+  --output-dir results_comparison_models
+```
+
+如果只想先快速烟测，可限制样本数：
+
+```bash
+python comparison_models.py \
+  --data 测试数据.csv \
+  --models default \
+  --max-train-samples 120 \
+  --max-test-samples 60 \
+  --no-feature-selection \
+  --deep-epochs 1 \
+  --output-dir results_comparison_smoke_default
+```
+
+输出包括 `comparison_results.json`、`comparison_summary.csv` 和 `comparison_metrics.png`。

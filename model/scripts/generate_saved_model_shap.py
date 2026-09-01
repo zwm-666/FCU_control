@@ -2,12 +2,18 @@
 
 import argparse
 import os
+import sys
 from typing import Dict
 
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from preprocess_utils import (
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.dirname(SCRIPT_DIR)
+if MODEL_DIR not in sys.path:
+    sys.path.insert(0, MODEL_DIR)
+
+from core.preprocess_utils import (
     load_preprocess_meta,
     prepare_training_dataframe,
     transform_features_with_meta,
@@ -84,7 +90,7 @@ def run_saved_model_shap(
     """对已保存模型执行离线 SHAP 分析。"""
     import tensorflow as tf
 
-    from model import CUSTOM_OBJECTS, generate_shap_artifacts
+    from core.model import CUSTOM_OBJECTS, generate_shap_artifacts
 
     payload = load_shap_inputs_for_saved_split(
         data_path=data_path,
@@ -110,7 +116,7 @@ def run_saved_model_shap(
 
 def main():
     parser = argparse.ArgumentParser(description="基于已保存 70/30 模型执行 SHAP 分析")
-    parser.add_argument("--data-path", default="测试数据.xlsx", help="原始数据路径")
+    parser.add_argument("--data-path", default=os.path.join("数据文件", "测试数据.xlsx"), help="原始数据路径")
     parser.add_argument(
         "--model-path",
         default=os.path.join("results_testdata_70_30", "ceo_qaadam_emstgat.keras"),

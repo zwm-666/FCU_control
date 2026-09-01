@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 
 
-BASE_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+BASE_DIR = SCRIPT_DIR.parent
 TARGET_DIR = BASE_DIR / "数据文件" / "水淹和膜干故障测试数据"
 RAW_ROOT = Path(r"D:\learn\研究生文件\燃料电池数据集\海亿\交流阻抗资料")
 

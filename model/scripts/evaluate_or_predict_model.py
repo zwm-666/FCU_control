@@ -6,14 +6,20 @@
 import argparse
 import json
 import os
+import sys
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
-from model import CUSTOM_OBJECTS
-from preprocess_utils import (
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.dirname(SCRIPT_DIR)
+if MODEL_DIR not in sys.path:
+    sys.path.insert(0, MODEL_DIR)
+
+from core.model import CUSTOM_OBJECTS
+from core.preprocess_utils import (
     decode_label_ids,
     encode_labels_with_meta,
     load_preprocess_meta,

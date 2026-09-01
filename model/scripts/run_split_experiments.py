@@ -7,11 +7,15 @@ import traceback
 
 import pandas as pd
 
-from ceo_qaadam_emstgat_trainer import run_training_pipeline
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-XLSX_PATH = os.path.join(SCRIPT_DIR, "测试数据.xlsx")
-CSV_PATH = os.path.join(SCRIPT_DIR, "测试数据.csv")
+MODEL_DIR = os.path.dirname(SCRIPT_DIR)
+if MODEL_DIR not in sys.path:
+    sys.path.insert(0, MODEL_DIR)
+
+from core.ceo_qaadam_emstgat_trainer import run_training_pipeline
+
+XLSX_PATH = os.path.join(MODEL_DIR, "数据文件", "测试数据.xlsx")
+CSV_PATH = os.path.join(MODEL_DIR, "数据文件", "测试数据.csv")
 
 
 def ensure_csv() -> str:
@@ -29,32 +33,36 @@ def ensure_csv() -> str:
     return CSV_PATH
 
 
-DATA_PATH = ensure_csv()
-
 EXPERIMENTS = [
     {"test_size": 0.2, "train_ratio": 80, "test_ratio": 20, "output_dir": "results_testdata_80_20"},
     {"test_size": 0.3, "train_ratio": 70, "test_ratio": 30, "output_dir": "results_testdata_70_30"},
     {"test_size": 0.4, "train_ratio": 60, "test_ratio": 40, "output_dir": "results_testdata_60_40"},
 ]
 
-SUMMARY_DIR = os.path.join(SCRIPT_DIR, "results_testdata_summary")
+SUMMARY_DIR = os.path.join(MODEL_DIR, "results", "metrics", "results_testdata_summary")
 
 
 def main() -> int:
-    if not os.path.exists(DATA_PATH):
-        print(f"[FATAL] dataset not found: {DATA_PATH}")
+    try:
+        data_path = ensure_csv()
+    except FileNotFoundError as exc:
+        print(f"[FATAL] dataset not found: {exc}")
+        return 1
+
+    if not os.path.exists(data_path):
+        print(f"[FATAL] dataset not found: {data_path}")
         return 1
 
     os.makedirs(SUMMARY_DIR, exist_ok=True)
     summaries = []
 
     for i, exp in enumerate(EXPERIMENTS, 1):
-        out_dir = os.path.join(SCRIPT_DIR, exp["output_dir"])
+        out_dir = os.path.join(MODEL_DIR, "results", "metrics", exp["output_dir"])
         print(f"\n[{i}/3] test_size={exp['test_size']} -> {out_dir}", flush=True)
         t0 = time.time()
         try:
             results = run_training_pipeline(
-                csv_path=DATA_PATH,
+                csv_path=data_path,
                 test_size=exp["test_size"],
                 epochs=100,
                 budget=10,
@@ -70,7 +78,7 @@ def main() -> int:
 
         wall = time.time() - t0
         summaries.append({
-            "data_path": os.path.basename(DATA_PATH),
+            "data_path": os.path.basename(data_path),
             "test_size": exp["test_size"],
             "train_ratio": exp["train_ratio"],
             "test_ratio": exp["test_ratio"],
