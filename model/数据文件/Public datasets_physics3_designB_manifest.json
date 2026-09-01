@@ -1,0 +1,243 @@
+{
+  "dataset_name": "PEMFC 3-class, physics-labeled, design B",
+  "route": "published State_Label discarded; labels recomputed from a closed cathode water balance",
+  "design": "B",
+  "design_meaning": "B: load-controlled, only the i in [12.0,16.0] A plateau, so classes cannot proxy the operating point",
+  "source_path": "D:\\python\\pythonProject3\\classified_fuel_cell_data\\processed_fuel_cell_data.csv",
+  "source_sha256": "6bc60724658e8ca6c1e6fdac1db0355e1a2d4f9ff62ef6718399ead34d217a93",
+  "source_rows": 37899,
+  "output_path": "D:\\my_project\\h2-fcu-modern-dashboard\\model\\数据文件\\Public datasets_physics3_designB.csv",
+  "output_sha256": "dfad527f909373e5d6f6b5296c8815c49da6be9388612e84c5717aa138e4031b",
+  "seed": 42,
+  "total_rows": 8499,
+  "class_counts": {
+    "Normal": 2833,
+    "Flooding": 2833,
+    "Membrane_Drying": 2833
+  },
+  "class_order": [
+    "Normal",
+    "Flooding",
+    "Membrane_Drying"
+  ],
+  "state_mapping": {
+    "Normal": 0,
+    "Flooding": 1,
+    "Membrane_Drying": 2
+  },
+  "synthetic_counts": {
+    "Normal": 0,
+    "Flooding": 0,
+    "Membrane_Drying": 0
+  },
+  "duplicated_row_counts": {
+    "Normal": 0,
+    "Flooding": 0,
+    "Membrane_Drying": 0
+  },
+  "all_rows_real": true,
+  "duplicate_feature_rows": 0,
+  "power_identity_max_abs_error": 0.017989669051701185,
+  "source_power_identity_max_abs_error": 0.041103015203058035,
+  "power_identity_note": "PW is a measured bench channel; its residual against U*I is inherited from the source and is not corrected, so no value is fabricated",
+  "criterion": {
+    "kind": "first-principles cathode water balance; row-wise; no global statistic and no quantile",
+    "state_variable": "a_w = 0.5*(RH_in@cell + RH_out@cell)/100",
+    "flooding_threshold": "a_w >= 1.0",
+    "drying_threshold": "a_w <= 0.7",
+    "normal_band": "0.7 < a_w < 1.0",
+    "threshold_provenance": "thermodynamic saturation (1.00) and the Nafion sorption-isotherm conductivity knee (0.70); neither tuned on this data",
+    "constants": {
+      "faraday_C_per_mol": 96485.0,
+      "molar_volume_L_per_mol_slpm": 22.414,
+      "x_O2_dry_air": 0.20946,
+      "magnus_kPa": "0.61094*exp(17.625*T/(T+243.04))",
+      "n_cell": 1
+    },
+    "channel_semantics": {
+      "RH_probe_temperature": "T_Air_inlet",
+      "cell_temperature": "T_Stack_inlet",
+      "cathode_pressure": "P_Air_inlet (= raw P_Air_outlet), bar abs",
+      "cathode_inlet_pressure": "P_Air_supply (= raw P_Air_inlet)",
+      "pressure_drop": "P_Air_inlet - P_Air_supply, positive",
+      "note": "the processed table renamed the raw columns by one position; corrected here"
+    },
+    "polarization_baseline_reported_only": {
+      "E0": 0.856459,
+      "tafel_b": 0.068525,
+      "r_ohm": 0.011064,
+      "rms_V": 0.0467,
+      "n_fit_rows": 30530
+    }
+  },
+  "discarded_published_labels": {
+    "reason": "water balance contradicts them",
+    "labeled_Flooding_a_w_median": 0.624,
+    "labeled_Flooding_subsaturated_share": 1.0,
+    "labeled_Normal_a_w_median": 0.508,
+    "labeled_Membrane_Drying_median_current_A": 0.255,
+    "labeled_Thermal_Management_Fault_a_w_median": 1.381,
+    "tree_depth4_on_current_and_voltage_recovers": 0.8953
+  },
+  "stoichiometry_wall": {
+    "m_Air_slpm_median": 6.1835,
+    "corr_m_Air_current": 0.0914,
+    "lambda_air_min_over_source": 12.31,
+    "current_needed_for_lambda_2_A": 180.4,
+    "bench_max_current_A": 28.82,
+    "conclusion": "cathode air flow is fixed, so lambda_air = 360.8/I >= 12.31; stoichiometric-starvation flooding is impossible on this bench"
+  },
+  "load_control": {
+    "window_A": [
+      12.0,
+      16.0
+    ],
+    "current_q05": 12.037,
+    "current_q50": 15.037,
+    "current_q95": 15.037,
+    "current_per_class_q50": {
+      "Normal": 15.037,
+      "Flooding": 15.037,
+      "Membrane_Drying": 15.037
+    }
+  },
+  "raw_physics_label_counts_full_source": {
+    "Normal": 3381,
+    "Flooding": 12925,
+    "Membrane_Drying": 21593
+  },
+  "unique_real_pool_after_load_control": {
+    "Normal": 2833,
+    "Flooding": 8939,
+    "Membrane_Drying": 9660
+  },
+  "all_real_balanced_capacity_per_class": 2833,
+  "selected_per_class": 2833,
+  "class_physics_medians": {
+    "a_w": {
+      "Normal": 0.849724,
+      "Flooding": 1.442235,
+      "Membrane_Drying": 0.506888
+    },
+    "RH_out_at_cell_pct": {
+      "Normal": 103.591896,
+      "Flooding": 176.602128,
+      "Membrane_Drying": 60.752937
+    },
+    "RH_in_at_cell_pct": {
+      "Normal": 65.577066,
+      "Flooding": 110.43019,
+      "Membrane_Drying": 40.436542
+    },
+    "lambda_air": {
+      "Normal": 24.093872,
+      "Flooding": 24.02501,
+      "Membrane_Drying": 24.111978
+    },
+    "eta_V": {
+      "Normal": -0.007596,
+      "Flooding": 0.045246,
+      "Membrane_Drying": -0.040575
+    },
+    "n_liquid_mol_s": {
+      "Normal": 8e-06,
+      "Flooding": 9.1e-05,
+      "Membrane_Drying": 0.0
+    },
+    "dP_cathode_bar": {
+      "Normal": 0.189545,
+      "Flooding": 0.189914,
+      "Membrane_Drying": 0.189649
+    },
+    "T_cell_C": {
+      "Normal": 31.8634,
+      "Flooding": 23.227,
+      "Membrane_Drying": 44.3406
+    }
+  },
+  "temporal_structure": {
+    "Normal": {
+      "tsec_min": 1619.497,
+      "tsec_max": 8938.496,
+      "episodes_gap_gt_5s": 7
+    },
+    "Flooding": {
+      "tsec_min": 1806.074,
+      "tsec_max": 8845.067,
+      "episodes_gap_gt_5s": 17
+    },
+    "Membrane_Drying": {
+      "tsec_min": 342.322,
+      "tsec_max": 8970.858,
+      "episodes_gap_gt_5s": 24
+    }
+  },
+  "feature_columns": [
+    "tsec",
+    "U_totV",
+    "iA",
+    "PW",
+    "m_Air",
+    "m_H2",
+    "RH_Air",
+    "RH_H2",
+    "P_Air_supply",
+    "P_H2_supply",
+    "P_Air_inlet",
+    "P_H2_inlet",
+    "T_1",
+    "T_2",
+    "T_3",
+    "T_4",
+    "T_Air_inlet",
+    "T_H2_inlet",
+    "T_Stack_inlet",
+    "T_Heater",
+    "m_Air_write",
+    "m_H2_write",
+    "Heater_power",
+    "i_write"
+  ],
+  "model_feature_columns": [
+    "U_totV",
+    "iA",
+    "PW",
+    "m_Air",
+    "m_H2",
+    "RH_Air",
+    "RH_H2",
+    "P_Air_supply",
+    "P_H2_supply",
+    "P_Air_inlet",
+    "P_H2_inlet",
+    "T_1",
+    "T_2",
+    "T_3",
+    "T_4",
+    "T_Air_inlet",
+    "T_H2_inlet",
+    "T_Stack_inlet",
+    "T_Heater",
+    "m_Air_write",
+    "m_H2_write",
+    "Heater_power",
+    "i_write"
+  ],
+  "feature_count": 23,
+  "dead_channels_constant": [
+    "m_H2",
+    "T_2",
+    "m_Air_write",
+    "m_H2_write"
+  ],
+  "metadata_columns": [
+    "tsec"
+  ],
+  "preprocessing_note": "the training pipeline drops State and tsec and uses State_Label (last column) as the target; power columns are dropped by policy",
+  "verification": {
+    "relabel_of_serialized_file_matches": true,
+    "duplicate_feature_rows": 0,
+    "power_identity_max_abs_error": 0.017989669051701185,
+    "class_overlap": 0
+  }
+}

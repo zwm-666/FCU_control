@@ -1,0 +1,136 @@
+{
+  "dataset_name": "Public datasets 3-class 12000 from processed measurements",
+  "source_kind": "processed_raw_measurements",
+  "source_path": "D:\\python\\pythonProject3\\classified_fuel_cell_data\\processed_fuel_cell_data.csv",
+  "source_sha256": "6bc60724658e8ca6c1e6fdac1db0355e1a2d4f9ff62ef6718399ead34d217a93",
+  "source_rows": 37899,
+  "seed": 42,
+  "output_path": "D:\\my_project\\h2-fcu-modern-dashboard\\model\\数据文件\\Public datasets_3class_12000.csv",
+  "output_sha256": "da987a24afcd1d099671c7288856834ca4917832afa8d9789853bb7d8055db3a",
+  "total_rows": 12000,
+  "class_counts": {
+    "Normal": 4000,
+    "Flooding": 4000,
+    "Membrane_Drying": 4000
+  },
+  "state_counts": {
+    "0": 4000,
+    "1": 4000,
+    "2": 4000
+  },
+  "raw_rule_label_counts": {
+    "Normal": 16981,
+    "Flooding": 1805,
+    "Membrane_Drying": 8129,
+    "Thermal_Management_Fault": 10984
+  },
+  "excluded_classes": [
+    "Thermal_Management_Fault"
+  ],
+  "excluded_class_counts": {
+    "Thermal_Management_Fault": 10984
+  },
+  "class_order": [
+    "Normal",
+    "Flooding",
+    "Membrane_Drying"
+  ],
+  "state_mapping": {
+    "Normal": 0,
+    "Flooding": 1,
+    "Membrane_Drying": 2
+  },
+  "feature_columns": [
+    "tsec",
+    "U_totV",
+    "iA",
+    "PW",
+    "m_Air",
+    "m_H2",
+    "RH_Air",
+    "RH_H2",
+    "P_Air_supply",
+    "P_H2_supply",
+    "P_Air_inlet",
+    "P_H2_inlet",
+    "T_1",
+    "T_2",
+    "T_3",
+    "T_4",
+    "T_Air_inlet",
+    "T_H2_inlet",
+    "T_Stack_inlet",
+    "T_Heater",
+    "m_Air_write",
+    "m_H2_write",
+    "Heater_power",
+    "i_write"
+  ],
+  "model_feature_columns": [
+    "U_totV",
+    "iA",
+    "PW",
+    "m_Air",
+    "m_H2",
+    "RH_Air",
+    "RH_H2",
+    "P_Air_supply",
+    "P_H2_supply",
+    "P_Air_inlet",
+    "P_H2_inlet",
+    "T_1",
+    "T_2",
+    "T_3",
+    "T_4",
+    "T_Air_inlet",
+    "T_H2_inlet",
+    "T_Stack_inlet",
+    "T_Heater",
+    "m_Air_write",
+    "m_H2_write",
+    "Heater_power",
+    "i_write"
+  ],
+  "feature_count": 23,
+  "metadata_columns": [
+    "tsec"
+  ],
+  "selected_real_counts": {
+    "Normal": 4000,
+    "Flooding": 1805,
+    "Membrane_Drying": 4000
+  },
+  "supplemental_real_counts": {
+    "Normal": 0,
+    "Flooding": 0,
+    "Membrane_Drying": 0
+  },
+  "synthetic_counts": {
+    "Normal": 0,
+    "Flooding": 2195,
+    "Membrane_Drying": 0
+  },
+  "synthetic_method_class": "Flooding",
+  "synthetic_method": "same-class standardized 8-nearest-neighbour interpolation; alpha in [0.2,0.8]; Gaussian noise 0.002*class_std on model features; empirical-range clipping; PW recomputed as U_totV*iA; tsec interpolated as metadata",
+  "classification_rule": "global quartile cascade copied from 数据集2/build_balanced_dataset_smote.py; thermal precedence, then flooding, drying, normal, then voltage/temperature fallback",
+  "classification_thresholds": {
+    "voltage_q25": 0.532133887517261,
+    "voltage_q50": 0.6048484903395204,
+    "voltage_q75": 0.6599999999999875,
+    "air_rh_q25": 61.677673724289264,
+    "air_rh_q50": 79.6156217219737,
+    "air_rh_q75": 94.49419549237177,
+    "h2_rh_q25": 90.51504723046838,
+    "h2_rh_q50": 93.26059644633284,
+    "h2_rh_q75": 95.91102083097451,
+    "temperature_q25": 25.11892525543932,
+    "temperature_q50": 35.96814183706255,
+    "temperature_q75": 44.366789297333554,
+    "current_q50": 15.036999999999711,
+    "power_q50": 8.599145782682685
+  },
+  "power_identity_max_abs_error": 7.105427357601002e-15,
+  "duplicate_feature_rows": 0,
+  "selection_policy": "4000 Normal real rows + 4000 Membrane_Drying real rows + all 1805 real Flooding rows + 2195 synthetic Flooding rows; Thermal_Management_Fault excluded",
+  "preprocessing_note": "tsec is retained as metadata but current model preprocessing drops it; State is provenance encoding and State_Label is the supervised target"
+}
